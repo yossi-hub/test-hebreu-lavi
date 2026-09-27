@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tes premiers mots en hébreu, avec le professeur Lavi.">
+  <title>Test Hébreu Lavi</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23075e54'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='44' fill='white'%3Eא%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="questions.js" defer></script>
+  <script src="engine.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="brand"><span class="brand-mark" lang="he">ל</span><span>Professeur Lavi<span class="brand-detail">Évaluons votre hébreu 😊</span></span><span class="header-tag">Test Hébreu Lavi</span></header>
+  <main>
+    <section id="welcome" class="card welcome" aria-labelledby="welcome-title">
+      <p class="day-label">TA PREMIÈRE CONVERSATION</p>
+      <div class="bubble teacher welcome-content">
+        <span class="sender">Professeur Lavi</span>
+        <h1 id="welcome-title">Shalom ! <span lang="he" dir="rtl">שלום</span></h1>
+        <p>Je suis Lavi, ensemble, nous allons évaluer ton niveau d’hébreu.</p>
+        <p id="welcome-description"></p>
+      </div>
+      <div id="intake-history" class="history" aria-label="Prise de connaissance"></div>
+      <div id="intake-prompt" class="bubble teacher">
+        <span class="sender">Professeur Lavi</span>
+        <p id="intake-question" aria-live="polite"></p>
+      </div>
+      <form id="intake-form" class="composer" novalidate>
+        <label id="intake-label" for="intake-answer">Prénom et nom</label>
+        <input id="intake-answer" name="identite" type="text" autocomplete="name" required aria-describedby="intake-error">
+        <p id="intake-error" class="help" role="alert" hidden></p>
+        <button id="intake-submit" class="primary" type="submit">Envoyer <span aria-hidden="true">→</span></button>
+      </form>
+      <div id="intake-complete" class="bubble teacher" hidden>
+        <span class="sender">Professeur Lavi</span>
+        <p id="intake-confirmation" role="status"></p>
+      </div>
+      <div id="start-action" class="welcome-action" hidden><button id="start" class="primary">Commencer le test <span aria-hidden="true">→</span></button></div>
+    </section>
+
+    <section id="quiz" class="card quiz" hidden aria-label="Conversation du test">
+      <div class="progress-label"><span id="progress-text"></span><span id="question-level"></span></div>
+      <progress id="progress" max="1" value="0" aria-label="Progression du test"></progress>
+      <div id="history" class="history" aria-label="Messages précédents"></div>
+      <div id="active-question">
+      <div id="passage-message" class="bubble teacher passage-message" hidden>
+        <span class="sender">Professeur Lavi · Texte à lire</span>
+        <div id="question-passage"></div>
+      </div>
+      <div class="bubble teacher question-message"><span class="sender">Professeur Lavi</span>
+      <div id="question-context"></div>
+      <h2 id="question-title" tabindex="-1" dir="auto"></h2>
+      <p id="instruction" class="description"></p>
+      </div>
+      <div id="composer" class="composer">
+      <div id="choices" class="choices"></div>
+      <button id="confirm-choices" class="primary" hidden>Valider mes choix</button>
+      <p id="answer-error" class="help" role="alert" hidden></p>
+      <button id="skip" class="primary" type="button" hidden>Passer cette question</button>
+      <form id="written-form" class="chat-answer-form" hidden>
+        <label id="answer-label" for="written-answer">Ta réponse</label>
+        <input id="written-answer" name="answer" lang="he" dir="rtl" autocomplete="off" required aria-describedby="keyboard-help">
+        <p id="keyboard-help" class="help">Utilise ton clavier hébreu, ou les lettres ci-dessous.</p>
+        <div id="keyboard" class="keyboard" aria-label="Lettres hébraïques"></div>
+        <button id="check" class="primary" type="submit" aria-label="Envoyer la réponse">➤</button>
+      </form>
+      </div>
+      <div id="student-message" class="bubble student" hidden><span class="sender">Toi</span><p id="student-answer" dir="auto"></p></div>
+      <div id="feedback" class="bubble teacher feedback" role="status" aria-live="polite" hidden></div>
+      <button id="next" class="primary next" hidden>Question suivante <span aria-hidden="true">→</span></button>
+      </div>
+    </section>
+
+    <section id="results" class="card results" hidden aria-labelledby="result-title">
+      <span class="sender">Professeur Lavi · Test terminé</span>
+      <h2 id="result-title" tabindex="-1">Un premier pas accompli.</h2>
+      <p id="score" class="score"></p>
+      <p id="result-summary" class="description"></p>
+      <p id="result-email-status" class="help" role="status" aria-live="polite"></p>
+      <button id="restart" class="primary">Recommencer le test</button>
+    </section>
+  </main>
+  <footer>Un mot à la fois.</footer>
+</body>
+</html>
