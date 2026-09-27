@@ -446,30 +446,28 @@ function unscoredFeedback(question, value) {
   return messages[question.id] || 'Très bien, continuons.';
 }
 
-async function sendResultEmail(state) {
+async function sendResult(state) {
   if (resultEmailSent) return;
   resultEmailSent = true;
   const status = $('result-email-status');
   status.textContent = 'Envoi de ton bilan…';
   try {
-    const response = await fetch('https://formsubmit.co/ajax/contact@oulpanlavi.com', {
+    const response = await fetch('/api/results', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        _subject: `Nouveau test Lavi · ${userProfile.prenom} ${userProfile.nom} · Niveau ${state.variables.niveau_lavi}`,
-        _template: 'table',
-        _captcha: 'false',
         prenom: userProfile.prenom,
         nom: userProfile.nom,
         email: userProfile.email,
         telephone: userProfile.telephone,
         niveau_lavi: state.variables.niveau_lavi,
-        score: `${state.score} / ${state.possible}`,
+        score: state.score,
+        points_possibles: state.possible,
         questions_evaluees: state.attempted,
+        raison_fin: state.reason,
       }),
     });
-    const data = await response.json();
-    if (!response.ok || data.success === false) throw new Error('Envoi refusé');
+    if (!response.ok) throw new Error('Envoi refusé');
     status.textContent = 'Ton bilan a bien été transmis.';
   } catch (error) {
     status.textContent = 'Ton bilan n’a pas pu être envoyé automatiquement. Préviens le professeur Lavi.';
@@ -490,7 +488,7 @@ function showResults() {
   $('result-title').textContent = `Merci ${userProfile.prenom}, voici ton bilan.`;
   $('score').textContent = state.attempted ? `${state.score} / ${state.possible} points` : 'Pas de question notée';
   $('result-summary').textContent = `${messages[state.reason]} Niveau Lavi conseillé : ${state.variables.niveau_lavi}. ${state.attempted} question(s) évaluée(s) sur les ${questions.filter(q => q.bonneReponse != null).length} disponibles. Ce positionnement est indicatif.`;
-  sendResultEmail(state);
+  sendResult(state);
   $('result-title').focus();
 }
 $('written-form').addEventListener('submit', event => {

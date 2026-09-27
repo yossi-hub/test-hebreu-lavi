@@ -93,9 +93,9 @@ python3 scripts/import-typeform.py /chemin/vers/export.json
 
 ## Stockage et vérifications
 
-`userProfile` et l’état du moteur restent uniquement en mémoire JavaScript. Un rechargement ou la fermeture de la page les efface. À la fin du test, les coordonnées, le score et le niveau conseillé sont envoyés à `contact@oulpanlavi.com` par l’endpoint AJAX de FormSubmit. Les médias sont chargés depuis leurs hébergeurs externes.
+`userProfile` et l’état du moteur restent uniquement en mémoire JavaScript. Un rechargement ou la fermeture de la page les efface. À la fin du test, l’application envoie les coordonnées, le score et le niveau conseillé à la fonction Cloudflare Pages `/api/results`. Cette fonction valide les données puis les transmet à un webhook Make privé. Le scénario Make utilise deux modules Gmail : un récapitulatif au bureau sur `contact@oulpanlavi.com` et un bilan personnalisé à l’utilisateur. Les médias sont chargés depuis leurs hébergeurs externes.
 
-Le premier envoi déclenche un email d’activation de FormSubmit à `contact@oulpanlavi.com`. Il faut cliquer une fois sur le lien reçu pour autoriser les envois suivants.
+L’URL du webhook Make doit être enregistrée dans Cloudflare Pages sous la variable chiffrée `MAKE_WEBHOOK_URL`. Elle ne doit jamais être placée dans `app.js` ni commitée dans GitHub.
 
 Avec Node.js installé :
 
