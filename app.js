@@ -96,6 +96,7 @@ let displayedChoices = [];
 let selection = new Set();
 let testIntroShown = false;
 let resultEmailSent = false;
+let previousMediaKey = '';
 function personalize(text) {
   return text.replace(/\{\{field:358f8a5f-6233-46f7-acc7-980614b18b82\}\}/g, () => userProfile.prenom);
 }
@@ -104,6 +105,7 @@ function startTest() {
   engine.reset();
   testIntroShown = false;
   resultEmailSent = false;
+  previousMediaKey = '';
   $('history').replaceChildren();
   $('welcome').hidden = true;
   $('results').hidden = true;
@@ -141,7 +143,10 @@ function renderMedia(question) {
     passage.textContent = engine.block.passage;
     passageContainer.append(passage);
   }
-  if (!question.media) return;
+  const mediaKey = question.media ? `${question.media.type}:${question.media.url}` : '';
+  const repeatedVideo = question.media?.type === 'video' && mediaKey === previousMediaKey;
+  previousMediaKey = mediaKey;
+  if (!question.media || repeatedVideo) return;
   const url = new URL(question.media.url);
   if (url.protocol !== 'https:') return;
   if (question.media.type === 'image') {
@@ -363,7 +368,8 @@ function renderQuestion() {
       });
       $('keyboard').append(key);
     });
-  $('question-title').focus();
+  $('question-title').focus({ preventScroll: true });
+  $('question-title').scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
 }
 function submitAnswer(value) {
   const q = engine.current();
@@ -428,6 +434,7 @@ function archiveExchange(includeFeedback = true) {
     copy.querySelectorAll('[tabindex]').forEach(node => node.removeAttribute('tabindex'));
     // Ne pas multiplier les lecteurs vidéo dans l’historique.
     copy.querySelectorAll('iframe').forEach(node => node.remove());
+    copy.querySelectorAll('.youtube-preview').forEach(node => { node.hidden = false; });
     copy.querySelectorAll('details').forEach(node => { node.open = false; });
     $('history').append(copy);
   }

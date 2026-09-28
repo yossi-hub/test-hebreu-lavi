@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const created = [];
 class Element {
-  constructor(tag='div') { this.tag=tag; this.children=[]; this.hidden=false; this.events={}; this.attributes={}; this.value=''; this.validity={valid:true}; }
+  constructor(tag='div') { this.tag=tag; this.children=[]; this.hidden=false; this.events={}; this.attributes={}; this.value=''; this.validity={valid:true}; this.classList={toggle(){}}; }
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren() { this.children=[]; }
   addEventListener(name,fn) {this.events[name]=fn;}
@@ -32,9 +32,9 @@ assert.equal(parseTypedAnswer(firstQcm,'אני דויד'),firstQcm.bonneReponse)
 displayedChoices=[...firstQcm.choix];
 assert.equal(parseTypedAnswer(firstQcm,String(displayedChoices.findIndex(c=>c.valeur===firstQcm.bonneReponse)+1)),firstQcm.bonneReponse);
 const preference=questions.find(q=>q.id==='01bd29a5-dc50-4012-959f-d415559996c6');
-assert.equal(parseTypedAnswer(preference,'présentiel et distanciel').length,2);
-assert.equal(parseTypedAnswer(preference,'Je préfère suivre les cours en ligne')[0],preference.choix[1].valeur);
-assert.equal(parseTypedAnswer(preference,'Je préfère venir sur place')[0],preference.choix[0].valeur);
+assert.throws(()=>parseTypedAnswer(preference,'présentiel et distanciel'),/une seule préférence/);
+assert.equal(parseTypedAnswer(preference,'Je préfère suivre les cours en ligne'),preference.choix[1].valeur);
+assert.equal(parseTypedAnswer(preference,'Je préfère venir sur place'),preference.choix[0].valeur);
 assert.throws(()=>parseTypedAnswer(firstQcm,'réponse inconnue'),/propositions/);
 assert.deepEqual(formatQuestionText('?שלום! איך קוראים לך'),{text:'שלום! איך קוראים לך?',hebrew:true});
 assert.deepEqual(formatHebrewText('!בסדר'),{text:'בסדר!',hebrew:true});
@@ -124,4 +124,4 @@ const videoPreview=created.find(e=>e.className==='youtube-preview');
 videoPreview.events.click();
 assert.ok(created.some(e=>e.tag==='iframe' && e.src.includes('youtube-nocookie.com/embed/')),'Lecture YouTube intégrée');
 assert.equal(new Set(created.filter(e=>e.tag==='img' && e.src.includes('images.typeform.com')).map(e=>e.src)).size,8);
-console.log('OK : profil, validations, parcours UI, QCM multiples, médias, score, historique, redémarrage.');
+console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');
