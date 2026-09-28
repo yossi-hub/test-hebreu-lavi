@@ -97,6 +97,7 @@ let selection = new Set();
 let testIntroShown = false;
 let resultEmailSent = false;
 let previousMediaKey = '';
+let previousPassage = '';
 function personalize(text) {
   return text.replace(/\{\{field:358f8a5f-6233-46f7-acc7-980614b18b82\}\}/g, () => userProfile.prenom);
 }
@@ -106,6 +107,7 @@ function startTest() {
   testIntroShown = false;
   resultEmailSent = false;
   previousMediaKey = '';
+  previousPassage = '';
   $('history').replaceChildren();
   $('welcome').hidden = true;
   $('results').hidden = true;
@@ -134,13 +136,16 @@ function renderMedia(question) {
   const passageContainer = $('question-passage');
   context.replaceChildren();
   passageContainer.replaceChildren();
-  passageMessage.hidden = !engine.block.passage;
-  if (engine.block.passage) {
+  const currentPassage = engine.block.passage || '';
+  const repeatedPassage = currentPassage && currentPassage === previousPassage;
+  previousPassage = currentPassage;
+  passageMessage.hidden = !currentPassage || repeatedPassage;
+  if (currentPassage && !repeatedPassage) {
     const passage = document.createElement('p');
     passage.className = 'reading-passage';
     passage.lang = 'he';
     passage.dir = 'rtl';
-    passage.textContent = engine.block.passage;
+    passage.textContent = currentPassage;
     passageContainer.append(passage);
   }
   const mediaKey = question.media ? `${question.media.type}:${question.media.url}` : '';

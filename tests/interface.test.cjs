@@ -69,7 +69,7 @@ while(!engine.state.finished) {
     const intro=$('history').children[$('history').children.length-1];
     assert.equal(intro.children[1].textContent,'OK Alice,');
   }
-  const hadPassage=Boolean(engine.block.passage);
+  const hadPassage=!$('passage-message').hidden;
   const historyBefore=$('history').children.length;
   assert.equal($('question-title').textContent,formatQuestionText(q.texte).text);
   assert.equal($('question-title').dir,/[\u0590-\u05ff]/.test(q.texte)?'rtl':'ltr');
