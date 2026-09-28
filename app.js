@@ -400,8 +400,12 @@ function submitAnswer(value) {
   if (result.scored) {
     const rawCorrect = q.type === 'text' ? q.bonneReponse : q.choix.find(c => c.valeur === q.bonneReponse).libelle;
     const formattedCorrect = formatHebrewText(rawCorrect);
-    const correct = formattedCorrect.hebrew ? `\u2067${formattedCorrect.text}\u2069` : formattedCorrect.text;
-    $('feedback').textContent = `${result.correct ? 'Bonne réponse !' : result.skipped ? 'Voici la correction.' : 'Pas tout à fait.'} La bonne réponse est : ${correct}`;
+    if (result.correct) {
+      $('feedback').textContent = 'Bonne réponse';
+    } else {
+      const correct = formattedCorrect.hebrew ? `\u2067${formattedCorrect.text}\u2069` : formattedCorrect.text;
+      $('feedback').textContent = `${result.skipped ? 'Voici la correction.' : 'Pas tout à fait.'} La bonne réponse est : ${correct}`;
+    }
   } else {
     $('feedback').textContent = unscoredFeedback(q, value);
   }
