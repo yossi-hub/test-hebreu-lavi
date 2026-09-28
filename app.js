@@ -251,15 +251,14 @@ function parseTypedAnswer(question, rawAnswer) {
   if (question.reponseConversationnelle) {
     const normalizedAnswer = normalizeTypedValue(rawAnswer);
     if (/\b(les deux|les 2|tous les deux)\b/.test(normalizedAnswer)) {
-      return question.choix.map(choice => choice.valeur);
+      throw new Error('Choisis une seule préférence : « en présentiel » ou « à distance ».');
     }
     const wantsInPerson = /\b(presentiel|sur place|en classe)\b/.test(normalizedAnswer);
     const wantsRemote = /\b(distanciel|a distance|en ligne|visio)\b/.test(normalizedAnswer);
-    const choices = [];
-    if (wantsInPerson) choices.push(question.choix.find(choice => normalizeTypedValue(choice.libelle).includes('presentiel'))?.valeur);
-    if (wantsRemote) choices.push(question.choix.find(choice => normalizeTypedValue(choice.libelle).includes('distanciel'))?.valeur);
-    if (choices.filter(Boolean).length) return [...new Set(choices.filter(Boolean))];
-    throw new Error('Précise « en présentiel », « à distance » ou « les deux ».');
+    if (wantsInPerson === wantsRemote) {
+      throw new Error('Choisis une seule préférence : « en présentiel » ou « à distance ».');
+    }
+    return question.choix.find(choice => normalizeTypedValue(choice.libelle).includes(wantsInPerson ? 'presentiel' : 'distanciel'))?.valeur;
   }
   if (question.type === 'text') return rawAnswer;
   if (!rawAnswer) throw new Error('Écris ta réponse ou choisis une proposition.');

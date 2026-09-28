@@ -81,11 +81,11 @@ const questions = [
     "points": 0,
     "niveau": null,
     "obligatoire": false,
-    "multiple": true,
+    "multiple": false,
     "aleatoire": false,
     "langue": "fr",
     "reponseConversationnelle": true,
-    "instruction": "Écris naturellement : en présentiel, en distanciel ou les deux."
+    "instruction": "Écris naturellement : en présentiel ou en distanciel."
   },
   {
     "id": "bfff1062-27eb-455c-bb6b-ae72d17c0495",
@@ -432,7 +432,7 @@ const questions = [
     "points": 1,
     "niveau": 2,
     "obligatoire": false,
-    "multiple": true,
+    "multiple": false,
     "aleatoire": true,
     "media": {
       "type": "image",
