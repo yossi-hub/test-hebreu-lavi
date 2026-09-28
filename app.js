@@ -45,6 +45,7 @@ function renderIntakeStep(focus = true) {
   submit.textContent = conversationalInput ? '➤' : 'Envoyer →';
   $('intake-error').hidden = true;
   if (focus) input.focus();
+  scrollConversationToBottom();
 }
 
 $('intake-form').addEventListener('submit', (event) => {
@@ -87,7 +88,8 @@ $('intake-form').addEventListener('submit', (event) => {
     $('intake-confirmation').textContent = `Parfait, merci ${userProfile.prenom}. On peut commencer le test 😊`;
     $('intake-complete').hidden = false;
     $('start-action').hidden = false;
-    $('start').focus();
+    $('start').focus({ preventScroll: true });
+    scrollConversationToBottom();
   }
 });
 
@@ -100,6 +102,14 @@ let previousMediaKey = '';
 let previousPassage = '';
 function personalize(text) {
   return text.replace(/\{\{field:358f8a5f-6233-46f7-acc7-980614b18b82\}\}/g, () => userProfile.prenom);
+}
+function scrollConversationToBottom() {
+  const scroll = () => globalThis.scrollTo?.({
+    top: document.documentElement?.scrollHeight || 0,
+    behavior: 'smooth',
+  });
+  if (globalThis.requestAnimationFrame) globalThis.requestAnimationFrame(scroll);
+  else scroll();
 }
 function startTest() {
   if (intakeIndex < intakeSteps.length) return;
@@ -191,6 +201,7 @@ function renderMedia(question) {
         frame.referrerPolicy = 'strict-origin-when-cross-origin';
         preview.hidden = true;
         context.append(frame);
+        scrollConversationToBottom();
       });
       context.append(preview);
     }
@@ -374,7 +385,7 @@ function renderQuestion() {
       $('keyboard').append(key);
     });
   $('question-title').focus({ preventScroll: true });
-  $('question-title').scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+  scrollConversationToBottom();
 }
 function submitAnswer(value) {
   const q = engine.current();
@@ -507,7 +518,8 @@ function showResults() {
   $('score').textContent = state.attempted ? `${state.score} / ${state.possible} points` : 'Pas de question notée';
   $('result-summary').textContent = `${messages[state.reason]} Niveau Lavi conseillé : ${state.variables.niveau_lavi}. ${state.attempted} question(s) évaluée(s) sur les ${questions.filter(q => q.bonneReponse != null).length} disponibles. Ce positionnement est indicatif.`;
   sendResult(state);
-  $('result-title').focus();
+  $('result-title').focus({ preventScroll: true });
+  scrollConversationToBottom();
 }
 $('written-form').addEventListener('submit', event => {
   event.preventDefault();
