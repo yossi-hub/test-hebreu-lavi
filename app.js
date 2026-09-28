@@ -289,6 +289,7 @@ function renderQuestion() {
   $('next').hidden = true;
   $('answer-error').hidden = true;
   $('composer').hidden = false;
+  $('composer').classList.toggle('text-composer', q.type === 'text');
   $('confirm-choices').hidden = !q.multiple || q.reponseConversationnelle;
   $('skip').hidden = q.obligatoire;
   $('written-form').hidden = q.type !== 'text';

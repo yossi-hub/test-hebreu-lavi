@@ -35,6 +35,7 @@ progress::-webkit-progress-value { background: var(--green); border-radius: 5px;
 progress::-moz-progress-bar { background: var(--green); border-radius: 5px; }
 .description { color: var(--muted); }
 .composer { margin: 22px 0 20px auto; max-width: 88%; padding: 18px; background: #f7f9f6; border-radius: 16px; }
+.composer.text-composer { min-height: 0; margin: 0; padding: 0; background: transparent; }
 .composer-label { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
 .chat-input-only { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 7px; border: 1px solid #d4ddd7; border-radius: 28px; background: white; }
 .chat-input-only, .chat-answer-form { position: fixed; z-index: 20; left: 50%; bottom: 16px; width: min(calc(100% - 32px), 760px); max-width: none; margin: 0; transform: translateX(-50%); box-shadow: 0 8px 28px #173c2826; }
