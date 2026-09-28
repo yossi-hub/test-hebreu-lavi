@@ -503,6 +503,13 @@ async function sendResult(state) {
   }
 }
 
+function redirectToThankYouPage(state) {
+  const url = new URL('https://www.oulpanlavi.com/merci-test/');
+  url.searchParams.set('prenom', userProfile.prenom);
+  url.searchParams.set('niveau_lavi', state.variables.niveau_lavi);
+  globalThis.location?.assign(url.toString());
+}
+
 function showResults() {
   $('active-question').hidden = true;
   $('results').hidden = false;
@@ -517,7 +524,7 @@ function showResults() {
   $('result-title').textContent = `Merci ${userProfile.prenom}, voici ton bilan.`;
   $('score').textContent = state.attempted ? `${state.score} / ${state.possible} points` : 'Pas de question notée';
   $('result-summary').textContent = `${messages[state.reason]} Niveau Lavi conseillé : ${state.variables.niveau_lavi}. ${state.attempted} question(s) évaluée(s) sur les ${questions.filter(q => q.bonneReponse != null).length} disponibles. Ce positionnement est indicatif.`;
-  sendResult(state);
+  sendResult(state).finally(() => redirectToThankYouPage(state));
   $('result-title').focus({ preventScroll: true });
   scrollConversationToBottom();
 }
