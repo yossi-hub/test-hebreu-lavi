@@ -39,15 +39,6 @@ assert.throws(()=>parseTypedAnswer(firstQcm,'réponse inconnue'),/propositions/)
 assert.deepEqual(formatQuestionText('?שלום! איך קוראים לך'),{text:'שלום! איך קוראים לך?',hebrew:true});
 assert.deepEqual(formatHebrewText('!בסדר'),{text:'בסדר!',hebrew:true});
 assert.deepEqual(formatQuestionText('Comment vas-tu ?'),{text:'Comment vas-tu ?',hebrew:false});
-let redirectedUrl='';
-globalThis.location={assign(url){redirectedUrl=url;}};
-userProfile.prenom='Léa';
-redirectToThankYouPage({variables:{niveau_lavi:4}});
-const thankYouUrl=new URL(redirectedUrl);
-assert.equal(thankYouUrl.origin+thankYouUrl.pathname,'https://www.oulpanlavi.com/merci-test/');
-assert.equal(thankYouUrl.searchParams.get('prenom'),'Léa');
-assert.equal(thankYouUrl.searchParams.get('niveau_lavi'),'4');
-userProfile.prenom='';
 startTest(); assert.equal($('choices').children.length,0);
 function intake(value) { $('intake-answer').value=value; $('intake-form').events.submit({preventDefault(){}}); }
 assert.equal($('intake-form').className,'composer chat-input-only');

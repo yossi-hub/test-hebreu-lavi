@@ -60,6 +60,7 @@ Le résultat s’affiche localement, sans la redirection du Typeform vers un sit
 - `index.html` / `style.css` : structure et design.
 - `scripts/import-typeform.py` : conversion reproductible d’un export JSON Typeform.
 - `tests/engine.test.cjs` / `tests/interface.test.cjs` : vérifications automatisées sans dépendance externe.
+- `functions/api/recommendations.js` : lecture sécurisée des classes Airtable et classement des classes compatibles par l’API OpenAI.
 
 ## Modifier ou ajouter des questions
 
@@ -97,11 +98,24 @@ python3 scripts/import-typeform.py /chemin/vers/export.json
 
 L’URL du webhook Make doit être enregistrée dans Cloudflare Pages sous la variable chiffrée `MAKE_WEBHOOK_URL`. Elle ne doit jamais être placée dans `app.js` ni commitée dans GitHub.
 
+### Recommandations de classes (branche DEV)
+
+À la fin du test, l’interface appelle `/api/recommendations` avec le seul niveau Lavi. La fonction charge la table `Classes` de la base Airtable `Base Cours`, conserve les classes `Upcoming` ou `In Progress` du niveau correspondant avec un lien d’inscription et des places, puis demande à OpenAI d’en classer jusqu’à trois. Si l’appel OpenAI échoue, les premières classes éligibles sont proposées par règles afin que l’écran reste utile.
+
+Configurer ces secrets dans l’environnement **Preview** de Cloudflare Pages pour tester la branche sans modifier la production :
+
+- `AIRTABLE_TOKEN` : jeton Airtable en lecture sur `Base Cours` ;
+- `OPENAI_API_KEY` : clé du projet OpenAI DEV ;
+- `MAKE_WEBHOOK_URL` : webhook Make déjà utilisé par l’envoi du bilan.
+
+Les identifiants `AIRTABLE_BASE_ID`, `AIRTABLE_CLASSES_TABLE_ID` et le modèle `OPENAI_MODEL` sont facultatifs ; la fonction contient les valeurs DEV actuelles et utilise `gpt-6-luna` par défaut. Les fichiers `.env.local` et `.dev.vars` sont ignorés par Git.
+
 Avec Node.js installé :
 
 ```sh
 node tests/engine.test.cjs
 node tests/interface.test.cjs
+node tests/recommendations.test.mjs
 ```
 
 Les tests vérifient les 68 réponses, le parcours complet, l’entrée directe au niveau 4, les arrêts des huit niveaux, les sept refus de continuer, la correction finale, les réponses facultatives, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.
