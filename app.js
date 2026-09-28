@@ -306,10 +306,8 @@ function renderQuestion() {
     $('progress').max = levelQuestions.length;
     $('progress').value = levelQuestions.indexOf(q) + 1;
     $('question-level').textContent = `Niveau ${q.niveau} sur 8`;
-  } else {
-    $('progress-text').textContent = engine.block.transition ? 'Fin du niveau' : 'Faisons le point';
-    $('question-level').textContent = engine.block.transition ? 'À ton rythme' : 'Sans points';
   }
+  $('progress-label').hidden = !q.points;
   $('progress').hidden = !q.points;
   renderMedia(q);
   $('choices').replaceChildren();
