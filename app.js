@@ -12,14 +12,18 @@ let intakeIndex = 0;
 function intakeMessage(text, student = false) {
   const bubble = document.createElement('div');
   bubble.className = `bubble ${student ? 'student' : 'teacher'}`;
-  const sender = document.createElement('span');
-  sender.className = 'sender';
-  sender.textContent = student ? 'Toi' : 'Professeur Lavi';
   const content = document.createElement('p');
   content.dir = 'auto';
   // textContent affiche les réponses comme du texte, jamais comme du HTML.
   content.textContent = text;
-  bubble.append(sender, content);
+  if (student) {
+    bubble.append(content);
+  } else {
+    const sender = document.createElement('span');
+    sender.className = 'sender';
+    sender.textContent = 'Professeur Lavi';
+    bubble.append(sender, content);
+  }
   $('intake-history').append(bubble);
 }
 
