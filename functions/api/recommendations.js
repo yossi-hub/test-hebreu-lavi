@@ -15,6 +15,7 @@ const FIELDS = {
   number: 'fldcKQPOroEmSYmwE',
   type: 'fldCuRG3sEcLnT5fK',
   level: 'fld2E7XYUsEBuPBPx',
+  currentChapter: 'fldedo3AHC5u6o7pZ',
   hours: 'fldOT7CUfWymgpt6x',
   status: 'fldwfIvxjy0RU9ske',
   remaining: 'fld6xVGS673ouP1j6',
@@ -24,18 +25,6 @@ const FIELDS = {
   address: 'fldzLmZHGT3ZrJpuB',
   calendar: 'fldF0hUIJ16Oj6',
 };
-
-export const LEVEL_LABELS = Object.freeze({
-  1: 'Débutant',
-  2: 'Débutant+',
-  3: 'débutant ++',
-  4: 'Intermédiaire',
-  5: 'Intermédiaire+',
-  6: 'Avancés 1',
-  7: 'Avancés 2',
-  8: 'Avancé 3',
-  9: 'Avancé 3',
-});
 
 const textValue = (value) => {
   if (value == null) return '';
@@ -65,6 +54,7 @@ export function normalizeClass(record) {
     id: record.id,
     nom: `Classe ${textValue(fields[FIELDS.number])}`,
     niveau: textValue(fields[FIELDS.level]),
+    chapitre_en_cours: numericValue(fields[FIELDS.currentChapter]),
     format: textValue(fields[FIELDS.type]),
     statut: textValue(fields[FIELDS.status]),
     jour: textValue(fields[FIELDS.day]),
@@ -78,14 +68,14 @@ export function normalizeClass(record) {
 }
 
 export function selectEligible(records, niveauLavi) {
-  const targetLevel = LEVEL_LABELS[niveauLavi];
-  if (!targetLevel) return [];
   const activeStatuses = new Set(['Upcoming', 'In Progress']);
   return records
     .map(normalizeClass)
-    .filter(item => item.id && item.niveau === targetLevel && activeStatuses.has(item.statut))
+    .filter(item => item.id && item.chapitre_en_cours != null && activeStatuses.has(item.statut))
     .filter(item => item.lien && (item.places_restantes == null || item.places_restantes > 0))
-    .sort((a, b) => Number(b.statut === 'Upcoming') - Number(a.statut === 'Upcoming'))
+    .map(item => ({ ...item, ecart_chapitre: Math.abs(item.chapitre_en_cours - niveauLavi) }))
+    .sort((a, b) => a.ecart_chapitre - b.ecart_chapitre
+      || Number(b.statut === 'Upcoming') - Number(a.statut === 'Upcoming'))
     .slice(0, 20);
 }
 
@@ -156,13 +146,15 @@ async function rankWithOpenAI(env, niveauLavi, candidates) {
       instructions: [
         'Tu conseilles des classes d’hébreu à un adulte après un test de niveau.',
         'Choisis au maximum trois classes parmi la liste fournie, sans jamais inventer un identifiant ni une information.',
-        'Privilégie une classe Upcoming, avec des places, puis une classe In Progress pertinente.',
+        'Le niveau Lavi calculé correspond au chapitre cible du participant.',
+        'Classe d’abord les options dont le chapitre_en_cours est le plus proche du niveau_lavi et utilise ecart_chapitre pour les comparer.',
+        'À écart comparable, privilégie une classe Upcoming, avec des places, puis une classe In Progress pertinente.',
         'Rédige chaque raison en français, chaleureuse, concrète et en une phrase.',
         'Ne mentionne pas de donnée absente et ne promets pas une inscription.',
       ].join(' '),
       input: JSON.stringify({
         niveau_lavi: niveauLavi,
-        niveau_airtable: LEVEL_LABELS[niveauLavi],
+        chapitre_cible: niveauLavi,
         classes_eligibles: candidates,
       }),
       text: {
@@ -180,8 +172,8 @@ async function rankWithOpenAI(env, niveauLavi, candidates) {
 }
 
 const fallbackReason = (item) => item.statut === 'Upcoming'
-  ? `Cette prochaine classe correspond au niveau ${item.niveau} conseillé à l’issue de ton test.`
-  : `Cette classe en cours correspond au niveau ${item.niveau} conseillé à l’issue de ton test.`;
+  ? `Cette prochaine classe, actuellement au chapitre ${item.chapitre_en_cours}, est proche du chapitre conseillé à l’issue de ton test.`
+  : `Cette classe en cours, actuellement au chapitre ${item.chapitre_en_cours}, est proche du chapitre conseillé à l’issue de ton test.`;
 
 const enrichRecommendations = (candidates, selections) => {
   const byId = new Map(candidates.map(item => [item.id, item]));
@@ -215,19 +207,19 @@ export async function onRequestPost({ request, env }) {
   try {
     const candidates = selectEligible(await fetchAirtableRecords(env), niveauLavi);
     if (!candidates.length) {
-      return json({ ok: true, niveau_lavi: niveauLavi, niveau_airtable: LEVEL_LABELS[niveauLavi], recommendations: [] });
+      return json({ ok: true, niveau_lavi: niveauLavi, chapitre_cible: niveauLavi, recommendations: [] });
     }
     try {
       const result = await rankWithOpenAI(env, niveauLavi, candidates);
       const recommendations = enrichRecommendations(candidates, result.recommandations);
       if (recommendations.length) {
-        return json({ ok: true, source: 'ai', niveau_lavi: niveauLavi, niveau_airtable: LEVEL_LABELS[niveauLavi], recommendations });
+        return json({ ok: true, source: 'ai', niveau_lavi: niveauLavi, chapitre_cible: niveauLavi, recommendations });
       }
     } catch (error) {
       console.error('Unable to rank classes with OpenAI', error);
     }
     const recommendations = candidates.slice(0, 3).map(item => ({ ...item, raison: fallbackReason(item) }));
-    return json({ ok: true, source: 'rules', niveau_lavi: niveauLavi, niveau_airtable: LEVEL_LABELS[niveauLavi], recommendations });
+    return json({ ok: true, source: 'rules', niveau_lavi: niveauLavi, chapitre_cible: niveauLavi, recommendations });
   } catch (error) {
     console.error('Unable to load Airtable classes', error);
     return json({ ok: false, error: 'Classes temporairement indisponibles' }, 502);

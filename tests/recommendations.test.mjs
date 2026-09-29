@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import {
-  LEVEL_LABELS,
   normalizeClass,
   onRequestPost,
   parseOpenAIResponse,
@@ -11,6 +10,7 @@ const fields = {
   number: 'fldcKQPOroEmSYmwE',
   type: 'fldCuRG3sEcLnT5fK',
   level: 'fld2E7XYUsEBuPBPx',
+  currentChapter: 'fldedo3AHC5u6o7pZ',
   hours: 'fldOT7CUfWymgpt6x',
   status: 'fldwfIvxjy0RU9ske',
   remaining: 'fld6xVGS673ouP1j6',
@@ -24,6 +24,7 @@ const record = (id, overrides = {}) => ({
     [fields.number]: '105',
     [fields.type]: { name: 'Zoom' },
     [fields.level]: { name: 'Intermédiaire' },
+    [fields.currentChapter]: '4,2',
     [fields.hours]: '19:00-20:30',
     [fields.status]: { name: 'Upcoming' },
     [fields.remaining]: 4,
@@ -33,12 +34,11 @@ const record = (id, overrides = {}) => ({
   },
 });
 
-assert.equal(LEVEL_LABELS[4], 'Intermédiaire');
-assert.equal(LEVEL_LABELS[9], 'Avancé 3');
 assert.deepEqual(normalizeClass(record('recA')), {
   id: 'recA',
   nom: 'Classe 105',
   niveau: 'Intermédiaire',
+  chapitre_en_cours: 4.2,
   format: 'Zoom',
   statut: 'Upcoming',
   jour: 'Mardi',
@@ -54,9 +54,11 @@ const eligible = selectEligible([
   record('recA'),
   record('recComplete', { [fields.status]: { name: 'Complete' } }),
   record('recFull', { [fields.remaining]: 0 }),
-  record('recWrongLevel', { [fields.level]: { name: 'Débutant' } }),
+  record('recNearer', { [fields.currentChapter]: '4,0', [fields.level]: { name: 'Débutant+' } }),
+  record('recWithoutChapter', { [fields.currentChapter]: '' }),
 ], 4);
-assert.deepEqual(eligible.map(item => item.id), ['recA']);
+assert.deepEqual(eligible.map(item => item.id), ['recNearer', 'recA']);
+assert.equal(eligible[0].ecart_chapitre, 0);
 
 assert.deepEqual(parseOpenAIResponse({
   output: [{ content: [{ type: 'output_text', text: '{"recommandations":[]}' }] }],
@@ -119,7 +121,7 @@ const fallbackBody = await fallbackResponse.json();
 console.error = originalConsoleError;
 assert.equal(fallbackBody.source, 'rules');
 assert.equal(fallbackBody.recommendations.length, 1);
-assert.match(fallbackBody.recommendations[0].raison, /niveau Intermédiaire/);
+assert.match(fallbackBody.recommendations[0].raison, /chapitre 4.2/);
 
 globalThis.fetch = originalFetch;
 console.log('OK : normalisation Airtable, filtrage par niveau, sélection IA et repli par règles.');

@@ -513,7 +513,8 @@ function appendClassRecommendation(item) {
 
   const title = document.createElement('h4');
   title.textContent = item.nom;
-  const details = [item.niveau, item.format, item.jour, item.horaires].filter(Boolean);
+  const chapter = item.chapitre_en_cours == null ? '' : `Chapitre ${item.chapitre_en_cours}`;
+  const details = [chapter, item.niveau, item.format, item.jour, item.horaires].filter(Boolean);
   const meta = document.createElement('p');
   meta.className = 'class-meta';
   meta.textContent = details.join(' · ');
