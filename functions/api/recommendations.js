@@ -94,7 +94,19 @@ async function fetchAirtableRecords(env) {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${env.AIRTABLE_TOKEN}` },
     });
-    if (!response.ok) throw new Error(`Airtable returned ${response.status}`);
+    if (!response.ok) {
+      let upstreamType = '';
+      try {
+        const errorBody = await response.json();
+        upstreamType = String(errorBody?.error?.type || errorBody?.error || '').slice(0, 80);
+      } catch {
+        // Le statut HTTP suffit si Airtable ne renvoie pas de JSON.
+      }
+      const error = new Error(`Airtable returned ${response.status}`);
+      error.upstreamStatus = response.status;
+      error.upstreamType = upstreamType;
+      throw error;
+    }
     const data = await response.json();
     records.push(...(Array.isArray(data.records) ? data.records : []));
     offset = data.offset || '';
@@ -222,7 +234,15 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: true, source: 'rules', niveau_lavi: niveauLavi, chapitre_cible: niveauLavi, recommendations });
   } catch (error) {
     console.error('Unable to load Airtable classes', error);
-    return json({ ok: false, error: 'Classes temporairement indisponibles' }, 502);
+    return json({
+      ok: false,
+      error: 'Classes temporairement indisponibles',
+      diagnostic: {
+        service: 'airtable',
+        status: Number(error?.upstreamStatus) || null,
+        type: String(error?.upstreamType || '').slice(0, 80) || null,
+      },
+    }, 502);
   }
 }
 
