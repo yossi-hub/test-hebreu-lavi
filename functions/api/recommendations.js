@@ -82,14 +82,12 @@ export function selectEligible(records, niveauLavi) {
 async function fetchAirtableRecords(env) {
   const baseId = env.AIRTABLE_BASE_ID || AIRTABLE_DEFAULTS.baseId;
   const tableId = env.AIRTABLE_CLASSES_TABLE_ID || AIRTABLE_DEFAULTS.tableId;
-  const fields = Object.values(FIELDS);
   const records = [];
   let offset = '';
   for (let page = 0; page < 3; page += 1) {
     const url = new URL(`https://api.airtable.com/v0/${baseId}/${tableId}`);
     url.searchParams.set('pageSize', '100');
     url.searchParams.set('returnFieldsByFieldId', 'true');
-    fields.forEach(field => url.searchParams.append('fields[]', field));
     if (offset) url.searchParams.set('offset', offset);
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${env.AIRTABLE_TOKEN}` },
