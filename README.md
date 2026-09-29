@@ -61,6 +61,8 @@ Le résultat s’affiche localement, sans la redirection du Typeform vers un sit
 - `scripts/import-typeform.py` : conversion reproductible d’un export JSON Typeform.
 - `tests/engine.test.cjs` / `tests/interface.test.cjs` : vérifications automatisées sans dépendance externe.
 - `functions/api/recommendations.js` : lecture sécurisée des classes Airtable et classement des classes compatibles par l’API OpenAI.
+- `functions/api/question-set.js` : aperçu du brouillon Airtable et publication de versions stables du questionnaire.
+- `admin.html` : vérification, aperçu et publication des questions sur DEV.
 
 ## Modifier ou ajouter des questions
 
@@ -100,7 +102,25 @@ L’URL du webhook Make doit être enregistrée dans Cloudflare Pages sous la va
 
 ### Recommandations de classes (branche DEV)
 
-À la fin du test, l’interface appelle `/api/recommendations` avec le seul niveau Lavi. Ce nombre est utilisé comme chapitre cible. La fonction charge la table `Classes` de la base Airtable `Base Cours`, conserve les classes `Upcoming` ou `In Progress` qui ont un `Chapitre en cours`, un lien d’inscription et des places, puis les trie selon leur distance au chapitre cible. OpenAI en classe ensuite jusqu’à trois. Si l’appel OpenAI échoue, les classes dont le chapitre est le plus proche sont proposées par règles afin que l’écran reste utile. Le champ Airtable `Niveau` est informatif et ne sert plus de table de correspondance.
+À la fin du test, l’interface appelle `/api/recommendations` avec le seul niveau Lavi. Ce nombre est utilisé comme chapitre cible. La fonction charge la table `Classes` de la base Airtable `Base Cours`, conserve les classes `Zoom` et `Upcoming` qui ont un `Chapitre en cours`, un lien d’inscription et des places, puis les trie selon leur distance au chapitre cible. OpenAI en classe ensuite jusqu’à trois. Si l’appel OpenAI échoue, les classes dont le chapitre est le plus proche sont proposées par règles afin que l’écran reste utile. Le champ Airtable `Niveau` est informatif et ne sert plus de table de correspondance.
+
+### Questions gérées depuis Airtable (branche DEV)
+
+La table [Questions test hébreu](https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA) contient 80 questions du parcours, 3 questions de profil et 2 questions importées mais hors parcours. Airtable sert de brouillon éditorial. Le site public charge la dernière version publiée au démarrage du test ; si aucune version n’existe encore, il utilise les questions embarquées dans `questions.js`. Un test déjà commencé conserve sa version jusqu’au rechargement de la page.
+
+Sur la branche DEV, ouvrir `/admin.html`, entrer le code d’administration, cliquer sur **Vérifier le brouillon**, puis **Tester dans l’application**. Si l’aperçu convient, cliquer sur **Publier sur DEV**. La publication relit Airtable et enregistre une copie stable dans D1. Elle est refusée si une question de profil manque, si le JSON des choix est invalide, si un bloc devient vide ou si une règle du parcours fait référence à une question retirée. Une question marquée `Brouillon` doit être passée à `Validée` avant publication ; `Archivée` l’exclut. Les questions `Hors parcours` restent dans Airtable sans apparaître dans le test.
+
+Les libellés des choix, textes, médias et instructions peuvent être modifiés dans Airtable. Il faut conserver les identifiants des questions et des choix déjà utilisés dans les règles. Une nouvelle question non notée peut être ajoutée à un bloc existant en indiquant `Phase = Test`, un `Bloc ID` existant et une position libre. L’ajout d’une question notée, la suppression d’une question utilisée par les règles ou le changement de sa bonne réponse exigent une adaptation des règles de calcul ; la publication est bloquée jusque-là.
+
+Configuration Cloudflare Pages **Preview** nécessaire à cette fonctionnalité :
+
+- conserver `AIRTABLE_TOKEN` avec le droit de lecture sur la base `Base Cours` ;
+- créer un secret `QUIZ_ADMIN_TOKEN` d’au moins 24 caractères ;
+- ajouter la variable `QUIZ_PUBLISH_ENABLED` avec la valeur `true` ;
+- créer une base D1 dédiée aux tests et l’associer à Pages avec le nom de liaison `QUIZ_DB` dans l’environnement Preview ;
+- redéployer `DEV` après l’ajout de la liaison D1.
+
+La table D1 `quiz_publications` est créée lors de la première publication. Le code d’administration reste côté Cloudflare et n’apparaît jamais dans les fichiers Git. La route d’aperçu exige ce code ; la route de publication exige en plus la liaison D1 et `QUIZ_PUBLISH_ENABLED=true`.
 
 Configurer ces secrets dans l’environnement **Preview** de Cloudflare Pages pour tester la branche sans modifier la production :
 
@@ -116,6 +136,7 @@ Avec Node.js installé :
 node tests/engine.test.cjs
 node tests/interface.test.cjs
 node tests/recommendations.test.mjs
+node tests/question-set.test.mjs
 ```
 
 Les tests vérifient les 68 réponses, le parcours complet, l’entrée directe au niveau 4, les arrêts des huit niveaux, les sept refus de continuer, la correction finale, les réponses facultatives, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.

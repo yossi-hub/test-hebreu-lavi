@@ -21,7 +21,7 @@ assert.ok(html.includes('Je suis Lavi, ensemble, nous allons évaluer ton niveau
 const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(ids).size,ids.length);
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
-const context=vm.createContext({assert,URL,fetch:async()=>({ok:true,json:async()=>({success:true})}),document:{
+const context=vm.createContext({assert,URL,URLSearchParams,fetch:async()=>({ok:true,json:async()=>({success:true})}),document:{
   getElementById(id) {assert.ok(elements[id],`Identifiant absent : ${id}`);return elements[id];},
   createElement(tag) {const e=new Element(tag);created.push(e);return e;},
 }});

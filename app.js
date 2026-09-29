@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const engine = createQuizEngine(questions, parcours);
+let engine = createQuizEngine(questions, parcours);
 // Données conservées uniquement en mémoire : un rechargement les efface.
 const userProfile = { prenom: '', nom: '', email: '', telephone: '' };
 const intakeSteps = [
@@ -614,3 +614,46 @@ $('start').addEventListener('click', startTest);
 $('restart').addEventListener('click', startTest);
 $('welcome-description').textContent = 'Le parcours s’adapte à tes réponses. Tu pourras t’arrêter entre deux niveaux.';
 renderIntakeStep(false);
+
+async function loadQuestionSet() {
+  const status = $('question-set-status');
+  const previewMode = new URLSearchParams(globalThis.location?.search || '').get('preview') === '1';
+  const token = previewMode ? globalThis.sessionStorage?.getItem('quizAdminToken') : '';
+  if (previewMode && !token) {
+    status.textContent = 'Aperçu réservé à l’administration. Vérifie d’abord le brouillon depuis la page d’administration.';
+    status.hidden = false;
+    return;
+  }
+  try {
+    const response = await fetch(`/api/question-set${previewMode ? '?preview=1' : ''}`, {
+      headers: previewMode ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) throw new Error(`Questions ${response.status}`);
+    const data = await response.json();
+    const snapshot = data.snapshot;
+    if (!Array.isArray(snapshot?.questions) || !Array.isArray(snapshot?.parcours?.blocs)
+      || !Array.isArray(snapshot?.profileQuestions)) throw new Error('Version des questions incomplète.');
+    questions.splice(0, questions.length, ...snapshot.questions);
+    Object.assign(parcours, snapshot.parcours);
+    intakeSteps.splice(0, intakeSteps.length, ...snapshot.profileQuestions);
+    engine = createQuizEngine(questions, parcours);
+    renderIntakeStep(false);
+    if (previewMode) {
+      status.textContent = 'Aperçu Airtable : ces questions ne sont pas encore publiées.';
+      status.hidden = false;
+    }
+  } catch {
+    if (previewMode) {
+      status.textContent = 'Aperçu indisponible. Retourne à l’administration pour vérifier le brouillon.';
+      status.hidden = false;
+      return;
+    }
+    // La version embarquée permet au test de fonctionner avant la première publication.
+  }
+  $('intake-answer').disabled = false;
+  $('intake-submit').disabled = false;
+}
+
+$('intake-answer').disabled = true;
+$('intake-submit').disabled = true;
+const questionSetReady = loadQuestionSet();
