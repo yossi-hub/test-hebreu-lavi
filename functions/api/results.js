@@ -1,3 +1,6 @@
+import { internalLocationHtml, locationFromRequest } from '../../lib/location.js';
+import { markNotification, saveParticipation } from '../../lib/participations.js';
+
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -9,15 +12,13 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 const clean = (value, maxLength = 200) => String(value ?? '').trim().slice(0, maxLength);
 
 export async function onRequestPost({ request, env }) {
-  if (!env.MAKE_WEBHOOK_URL) {
-    console.error('MAKE_WEBHOOK_URL is not configured');
-    return json({ ok: false, error: 'Configuration incomplète' }, 503);
-  }
-
   let input;
   try {
     input = await request.json();
   } catch {
+    return json({ ok: false, error: 'Corps JSON invalide' }, 400);
+  }
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return json({ ok: false, error: 'Corps JSON invalide' }, 400);
   }
 
@@ -42,6 +43,19 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: 'Données manquantes ou invalides' }, 400);
   }
 
+  payload.participation_id = crypto.randomUUID();
+  payload.location = locationFromRequest(request);
+  // This additional field is mapped only in Make's internal notification.
+  payload.internal_location_html = internalLocationHtml(payload.location);
+  const saved = await saveParticipation(env.QUIZ_DB, payload);
+  const mark = status => saved ? markNotification(env.QUIZ_DB, payload.participation_id, status) : Promise.resolve();
+
+  if (!env.MAKE_WEBHOOK_URL) {
+    console.error('MAKE_WEBHOOK_URL is not configured');
+    await mark('failed');
+    return json({ ok: false, error: 'Configuration incomplète' }, 503);
+  }
+
   try {
     const response = await fetch(env.MAKE_WEBHOOK_URL, {
       method: 'POST',
@@ -50,11 +64,14 @@ export async function onRequestPost({ request, env }) {
     });
     if (!response.ok) {
       console.error(`Make webhook returned ${response.status}`);
+      await mark('failed');
       return json({ ok: false, error: 'Transmission refusée' }, 502);
     }
+    await mark('accepted');
     return json({ ok: true });
   } catch (error) {
-    console.error('Unable to reach Make webhook', error);
+    console.error('Unable to reach Make webhook');
+    await mark('failed');
     return json({ ok: false, error: 'Service indisponible' }, 502);
   }
 }

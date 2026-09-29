@@ -50,7 +50,7 @@ Les règles des `inline_group` sont prioritaires à la fin de chaque groupe. Les
 
 Correction explicitement validée par l’utilisateur : pour la dernière question (`5ed6eb50-c8c7-4b49-8e6d-1050866979a2`), l’incrément du compteur `mr8` utilise `is_not` au lieu de `is`. La bonne réponse n’ajoute donc plus une erreur. Les autres conditions et seuils sont conservés.
 
-Le résultat s’affiche localement, sans la redirection du Typeform vers un site externe. Aucun prénom, email, téléphone ou résultat n’est envoyé ni placé dans une URL.
+Le résultat s’affiche sans redirection vers un site externe. Les coordonnées et le résultat sont transmis au backend dans le corps d’une requête POST, jamais dans l’URL.
 
 ## Fichiers
 
@@ -96,9 +96,31 @@ python3 scripts/import-typeform.py /chemin/vers/export.json
 
 ## Stockage et vérifications
 
-`userProfile` et l’état du moteur restent uniquement en mémoire JavaScript. Un rechargement ou la fermeture de la page les efface. À la fin du test, l’application envoie les coordonnées, le score et le niveau conseillé à la fonction Cloudflare Pages `/api/results`. Cette fonction valide les données puis les transmet à un webhook Make privé. Le scénario Make utilise deux modules Gmail : un récapitulatif au bureau sur `contact@oulpanlavi.com` et un bilan personnalisé à l’utilisateur. Les médias sont chargés depuis leurs hébergeurs externes.
+Dans le navigateur, `userProfile` et l’état du moteur restent en mémoire JavaScript. Un rechargement ou la fermeture de la page les efface. À la fin du test, l’application envoie les coordonnées, le score et le niveau conseillé à la fonction Cloudflare Pages `/api/results`. Cette fonction valide les données, enregistre la participation et sa localisation approximative dans D1, puis les transmet à un webhook Make privé. Le scénario Make utilise deux modules Gmail : un récapitulatif au bureau sur `contact@oulpanlavi.com` et un bilan personnalisé à l’utilisateur. Les médias sont chargés depuis leurs hébergeurs externes.
 
 L’URL du webhook Make doit être enregistrée dans Cloudflare Pages sous la variable chiffrée `MAKE_WEBHOOK_URL`. Elle ne doit jamais être placée dans `app.js` ni commitée dans GitHub.
+
+### Localisation approximative des participations (DEV)
+
+La localisation est lue dans `request.cf` au moment de la validation du résultat dans `/api/results`, par `lib/location.js`. Cloudflare fournit le code pays, la région, la ville, le code postal et le fuseau horaire. Le nom du pays en français est dérivé du code ISO avec `Intl.DisplayNames`, sans requête externe. Ces informations restent approximatives : un VPN ou un réseau mobile peut indiquer une autre ville. Aucun accès GPS, aucune permission navigateur, aucune lecture ou conservation de l’IP brute n’est ajouté. La localisation fournie par le navigateur dans le JSON est ignorée.
+
+Chaque soumission valide reçoit un `participation_id` aléatoire. `lib/participations.js` crée si nécessaire la table `test_participations` dans la liaison D1 `QUIZ_DB` et y stocke les coordonnées, le résultat, la date serveur et les colonnes `country`, `country_code`, `region`, `city`, `postal_code`, `timezone`. Le stockage précède l’appel Make. `webhook_status` indique `pending`, `accepted` ou `failed` : `accepted` confirme l’acceptation par Make, pas la livraison des deux mails. Chaque nouvelle soumission POST constitue une participation distincte.
+
+Les champs absents sont `null`, y compris en exécution locale sans `request.cf`. Sans liaison D1, ou en cas de panne de D1, l’envoi Make continue ; dans ce cas la participation n’est pas enregistrée dans D1. Une panne Make ne supprime pas une participation déjà enregistrée. Un simple serveur statique local ne sert pas les routes `/api` : utiliser un environnement Pages Functions pour tester les envois, ou les tests automatisés qui simulent Make et exécutent le schéma dans SQLite.
+
+Le webhook reçoit un objet `location` avec les six clés `country`, `countryCode`, `region`, `city`, `postalCode`, `timezone`, ainsi qu’un fragment HTML échappé `internal_location_html` destiné uniquement au mail du bureau. Le modèle de mail utilisateur et les champs qu’il utilise restent inchangés. Dans Make, le bloc interne doit être ajouté au corps HTML du module adressé au bureau avec `{{1.internal_location_html}}` (adapter le numéro au module webhook). Un ancien payload sans ce champ ne doit rien ajouter au mail.
+
+Pour vérifier le déploiement DEV, effectuer une participation sur `https://dev.test-hebreu-lavi.pages.dev/`, puis ouvrir la console de la base D1 Preview et exécuter :
+
+```sql
+SELECT id, date_test, niveau_lavi, country, country_code, region, city,
+       postal_code, timezone, webhook_status
+FROM test_participations
+ORDER BY date_test DESC
+LIMIT 10;
+```
+
+Contrôler ensuite la notification du bureau et vérifier que le bilan utilisateur conserve son contenu. Pour la mise en production sur `https://test.oulpanlavi.com`, fusionner DEV après validation et configurer une base D1 de production avec la même liaison `QUIZ_DB`, distincte de la base Preview. Redéployer la production puis répéter ce contrôle. La seule modification des réglages Preview n’active pas cette fonctionnalité en production.
 
 ### Recommandations de classes (branche DEV)
 
@@ -137,6 +159,7 @@ node tests/engine.test.cjs
 node tests/interface.test.cjs
 node tests/recommendations.test.mjs
 node tests/question-set.test.mjs
+node --test tests/results.test.mjs
 ```
 
 Les tests vérifient les 68 réponses, le parcours complet, l’entrée directe au niveau 4, les arrêts des huit niveaux, les sept refus de continuer, la correction finale, les réponses facultatives, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.
