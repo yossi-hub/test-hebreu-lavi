@@ -98,6 +98,7 @@ let displayedChoices = [];
 let selection = new Set();
 let testIntroShown = false;
 let resultEmailSent = false;
+let recommendationRequest = 0;
 let previousMediaKey = '';
 let previousPassage = '';
 function personalize(text) {
@@ -116,11 +117,14 @@ function startTest() {
   engine.reset();
   testIntroShown = false;
   resultEmailSent = false;
+  recommendationRequest += 1;
   previousMediaKey = '';
   previousPassage = '';
   $('history').replaceChildren();
   $('welcome').hidden = true;
   $('results').hidden = true;
+  $('class-recommendations-status').textContent = '';
+  $('class-recommendations-list').replaceChildren();
   $('quiz').hidden = false;
   $('active-question').hidden = false;
   renderQuestion();
@@ -503,11 +507,70 @@ async function sendResult(state) {
   }
 }
 
-function redirectToThankYouPage(state) {
-  const url = new URL('https://www.oulpanlavi.com/merci-test/');
-  url.searchParams.set('prenom', userProfile.prenom);
-  url.searchParams.set('niveau_lavi', state.variables.niveau_lavi);
-  globalThis.location?.assign(url.toString());
+function appendClassRecommendation(item) {
+  const card = document.createElement('article');
+  card.className = 'class-card';
+
+  const title = document.createElement('h4');
+  title.textContent = item.nom;
+  const chapter = item.chapitre_en_cours == null ? '' : `Chapitre ${item.chapitre_en_cours}`;
+  const details = [chapter, item.niveau, item.format, item.jour, item.horaires].filter(Boolean);
+  const meta = document.createElement('p');
+  meta.className = 'class-meta';
+  meta.textContent = details.join(' · ');
+  const reason = document.createElement('p');
+  reason.className = 'class-reason';
+  reason.textContent = item.raison;
+  card.append(title);
+  if (details.length) card.append(meta);
+  card.append(reason);
+
+  try {
+    const url = new URL(item.lien);
+    if (url.protocol === 'https:') {
+      const link = document.createElement('a');
+      link.className = 'class-link';
+      link.href = url.toString();
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Découvrir cette classe →';
+      card.append(link);
+    }
+  } catch {
+    // Une recommandation reste lisible même si son lien Airtable est invalide.
+  }
+  $('class-recommendations-list').append(card);
+}
+
+async function loadClassRecommendations(state) {
+  const requestId = ++recommendationRequest;
+  const status = $('class-recommendations-status');
+  const list = $('class-recommendations-list');
+  list.replaceChildren();
+  status.textContent = 'Nous recherchons les classes adaptées à ton niveau…';
+  try {
+    const response = await fetch('/api/recommendations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ niveau_lavi: state.variables.niveau_lavi }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Recommandations indisponibles');
+    if (requestId !== recommendationRequest) return;
+    const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
+    if (!recommendations.length) {
+      status.textContent = 'Aucune classe ouverte ne correspond exactement à ton niveau pour le moment. Nous te contacterons avec une proposition.';
+      return;
+    }
+    status.textContent = recommendations.length === 1
+      ? 'Voici la classe la plus adaptée à ton niveau.'
+      : 'Voici les classes les plus adaptées à ton niveau.';
+    recommendations.forEach(appendClassRecommendation);
+    scrollConversationToBottom();
+  } catch (error) {
+    if (requestId !== recommendationRequest) return;
+    status.textContent = 'Les propositions de classes sont temporairement indisponibles. Ton niveau a bien été calculé.';
+  }
 }
 
 function showResults() {
@@ -524,7 +587,8 @@ function showResults() {
   $('result-title').textContent = `Merci ${userProfile.prenom}, voici ton bilan.`;
   $('score').textContent = state.attempted ? `${state.score} / ${state.possible} points` : 'Pas de question notée';
   $('result-summary').textContent = `${messages[state.reason]} Niveau Lavi conseillé : ${state.variables.niveau_lavi}. ${state.attempted} question(s) évaluée(s) sur les ${questions.filter(q => q.bonneReponse != null).length} disponibles. Ce positionnement est indicatif.`;
-  sendResult(state).finally(() => redirectToThankYouPage(state));
+  sendResult(state);
+  loadClassRecommendations(state);
   $('result-title').focus({ preventScroll: true });
   scrollConversationToBottom();
 }
