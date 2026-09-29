@@ -68,14 +68,15 @@ export function normalizeClass(record) {
 }
 
 export function selectEligible(records, niveauLavi) {
-  const activeStatuses = new Set(['Upcoming', 'In Progress']);
   return records
     .map(normalizeClass)
-    .filter(item => item.id && item.chapitre_en_cours != null && activeStatuses.has(item.statut))
+    .filter(item => item.id
+      && item.chapitre_en_cours != null
+      && item.format.toLowerCase() === 'zoom'
+      && item.statut.toLowerCase() === 'upcoming')
     .filter(item => item.lien && (item.places_restantes == null || item.places_restantes > 0))
     .map(item => ({ ...item, ecart_chapitre: Math.abs(item.chapitre_en_cours - niveauLavi) }))
-    .sort((a, b) => a.ecart_chapitre - b.ecart_chapitre
-      || Number(b.statut === 'Upcoming') - Number(a.statut === 'Upcoming'))
+    .sort((a, b) => a.ecart_chapitre - b.ecart_chapitre)
     .slice(0, 20);
 }
 

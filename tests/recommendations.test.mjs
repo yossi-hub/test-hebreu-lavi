@@ -53,6 +53,8 @@ assert.deepEqual(normalizeClass(record('recA')), {
 const eligible = selectEligible([
   record('recA'),
   record('recComplete', { [fields.status]: { name: 'Complete' } }),
+  record('recInProgress', { [fields.status]: { name: 'In Progress' } }),
+  record('recPresentiel', { [fields.type]: { name: 'Présentiel' } }),
   record('recFull', { [fields.remaining]: 0 }),
   record('recNearer', { [fields.currentChapter]: '4,0', [fields.level]: { name: 'Débutant+' } }),
   record('recWithoutChapter', { [fields.currentChapter]: '' }),
