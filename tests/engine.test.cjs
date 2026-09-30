@@ -21,6 +21,11 @@ for (let level = 1; level <= 8; level += 1) {
     assert.equal(questions.find(question => question.id === id).niveau, level);
   }
 }
+const levelsWithVideoQuestions = new Set(scored.filter(question => question.media?.type === 'video').map(question => question.niveau));
+for (const level of levelsWithVideoQuestions) {
+  const primaryQuestions = parcours.adaptive.tests[level].primary.map(id => questions.find(question => question.id === id));
+  assert.ok(primaryQuestions.some(question => question.media?.type === 'video'), `Le niveau ${level} doit tester la compréhension orale.`);
+}
 
 function wrongAnswer(question) {
   if (question.type === 'text') return '__incorrect__';

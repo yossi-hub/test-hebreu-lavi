@@ -2371,7 +2371,7 @@ const parcours = {
       },
       "5": {
         "primary": [
-          "5b9d3541-f732-4777-b153-077c66b6dc14",
+          "6b1e5fc5-ced1-4e68-8656-53c6953783c2",
           "ff2dddac-c0bb-4097-8fed-9a6f103a82ac",
           "e8120fe8-f6e8-47d2-bed0-1fecee56705f"
         ],
@@ -2379,7 +2379,7 @@ const parcours = {
       },
       "6": {
         "primary": [
-          "d4c507c3-7dc8-4912-9405-988e25b71798",
+          "89de6932-c2b6-49e5-91ff-4aea84479327",
           "ceb51992-d270-4ad8-a13a-7932528e6f6a",
           "77982966-0a9e-4665-951b-06bb50d6f128"
         ],
@@ -2387,7 +2387,7 @@ const parcours = {
       },
       "7": {
         "primary": [
-          "f07549f6-f86e-45c5-826c-1e6ca1946b68",
+          "52896224-320f-40ae-bdef-3118787d4180",
           "e6232c0c-8bc9-4e71-b8cb-b43c74e1faf3",
           "676f6dd8-d851-4e2c-8d87-fc99ec97e798"
         ],
@@ -2395,7 +2395,7 @@ const parcours = {
       },
       "8": {
         "primary": [
-          "ca4f4372-e545-4eab-8cdd-1f71ab790d63",
+          "6e4c3df8-f055-4da4-9cf1-52ab3333409f",
           "25c1cd0a-9b5a-4f68-b814-fb79d2eb6523",
           "5ed6eb50-c8c7-4b49-8e6d-1050866979a2"
         ],

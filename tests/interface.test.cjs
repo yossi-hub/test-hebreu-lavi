@@ -25,6 +25,8 @@ const context=vm.createContext({assert,URL,URLSearchParams,fetch:async()=>({ok:t
   getElementById(id) {assert.ok(elements[id],`Identifiant absent : ${id}`);return elements[id];},
   createElement(tag) {const e=new Element(tag);created.push(e);return e;},
 }});
+context.scrollPositions=[];
+context.scrollTo=({top})=>context.scrollPositions.push(top);
 for(const file of ['questions.js','engine.js','app.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context);
 vm.runInContext(`
 const firstQcm=questions.find(q=>q.id==='353a37e5-2d45-4bec-a856-a8312586b6f0');
@@ -73,6 +75,7 @@ for(let index=0;index<4;index++) {
 assert.equal(orientationSubmit.disabled,false);
 orientationSubmit.events.click();
 assert.equal(engine.state.mode,'test');
+assert.equal(scrollPositions.at(-1),0);
 let steps=0;
 let expectedHistory=$('history').children.length;
 while(!engine.state.finished) {

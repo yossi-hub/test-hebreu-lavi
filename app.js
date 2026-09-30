@@ -113,6 +113,11 @@ function scrollConversationToBottom() {
   if (globalThis.requestAnimationFrame) globalThis.requestAnimationFrame(scroll);
   else scroll();
 }
+function scrollTestToTop() {
+  const scroll = () => globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
+  if (globalThis.requestAnimationFrame) globalThis.requestAnimationFrame(scroll);
+  else scroll();
+}
 function startTest() {
   if (intakeIndex < intakeSteps.length) return;
   engine.reset();
@@ -218,7 +223,7 @@ function renderOrientation() {
       return;
     }
     $('choices').className = 'choices';
-    renderQuestion();
+    renderQuestion(true);
   });
   $('choices').append(continueButton);
   $('question-title').focus({ preventScroll: true });
@@ -384,7 +389,7 @@ function parseTypedAnswer(question, rawAnswer) {
   return [...new Set(selectedChoices.map(choice => choice.valeur))];
 }
 
-function renderQuestion() {
+function renderQuestion(scrollToTop = false) {
   const q = engine.current();
   if (!q) { showResults(); return; }
   if (engine.state.mode === 'orientation') {
@@ -476,7 +481,8 @@ function renderQuestion() {
       $('keyboard').append(key);
     });
   $('question-title').focus({ preventScroll: true });
-  scrollConversationToBottom();
+  if (scrollToTop) scrollTestToTop();
+  else scrollConversationToBottom();
 }
 function submitAnswer(value) {
   const q = engine.current();
@@ -723,7 +729,12 @@ async function loadQuestionSet() {
       || !snapshot?.parcours?.adaptive
       || !Array.isArray(snapshot?.profileQuestions)) throw new Error('Version des questions incomplète.');
     questions.splice(0, questions.length, ...snapshot.questions);
+    const adaptiveConfiguration = parcours.adaptive;
     Object.assign(parcours, snapshot.parcours);
+    // La sélection des mini-tests est versionnée avec le code, tandis qu’Airtable
+    // fournit le contenu des questions. Cela permet d’améliorer le parcours sans
+    // attendre une nouvelle publication du contenu éditorial.
+    parcours.adaptive = adaptiveConfiguration;
     intakeSteps.splice(0, intakeSteps.length, ...snapshot.profileQuestions);
     engine = createQuizEngine(questions, parcours);
     renderIntakeStep(false);

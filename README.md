@@ -165,4 +165,6 @@ node --test tests/results.test.mjs
 
 Les quatre questions d’orientation sont présentées ensemble avec un choix Oui/Non. Le test explique dès le départ son fonctionnement adaptatif et permet de passer toute question notée jugée trop difficile. Il enchaîne ensuite des mini-tests adaptatifs de trois questions, avec une quatrième question de départage uniquement en cas de doute.
 
+Au démarrage du mini-test, la page remonte automatiquement pour rendre la progression et la première question visibles. Chaque niveau disposant de questions vidéo dans la banque inclut au moins une question de compréhension orale dans ses trois questions principales (niveaux 2 et 4 à 8). Les niveaux 1 et 3 n’ont actuellement aucune question vidéo dans la banque Airtable.
+
 Les tests vérifient les cinq routes d’orientation, l’écran groupé Oui/Non, les mini-tests adaptatifs de trois questions, la quatrième question de départage, le resserrement des bornes, les résultats des niveaux 1 à 8, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.
