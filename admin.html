@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Questions du test · Administration DEV</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="admin.js" defer></script>
+</head>
+<body>
+  <header class="brand"><span class="brand-mark" lang="he">ל</span><span>Professeur Lavi<span class="brand-detail">Questions du test</span></span><span class="header-tag">DEV</span></header>
+  <main>
+    <section class="card admin-card" aria-labelledby="admin-title">
+      <h1 id="admin-title">Prévisualiser et publier les questions</h1>
+      <p>Modifie les questions dans <a href="https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA" target="_blank" rel="noopener noreferrer">la table Airtable</a>, puis vérifie le brouillon ici avant de le publier sur DEV.</p>
+      <label for="admin-token">Code d’administration DEV</label>
+      <input id="admin-token" type="password" autocomplete="off" spellcheck="false">
+      <div class="admin-actions">
+        <button id="check-draft" class="primary" type="button">Vérifier le brouillon</button>
+        <a id="open-preview" class="primary" href="/?preview=1" hidden>Tester dans l’application</a>
+        <button id="publish-draft" class="primary" type="button" disabled>Publier sur DEV</button>
+      </div>
+      <p id="admin-status" class="help" role="status" aria-live="polite"></p>
+      <ul id="admin-errors" class="admin-errors" aria-label="Problèmes à corriger"></ul>
+    </section>
+  </main>
+  <footer>Oulpan Lavi</footer>
+</body>
+</html>
