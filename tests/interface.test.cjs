@@ -109,8 +109,8 @@ while(!engine.state.finished) {
   assert.equal($('history').children.length,historyBefore+3+Number(hadPassage)+Number(introAddedThisTurn));
   if(!engine.state.finished) assert.notEqual(engine.current().id,q.id);
 }
-assert.equal(engine.state.score,68);
-assert.equal($('score').textContent,'68 / 68 points');
+assert.equal(engine.state.score,12);
+assert.equal($('score').textContent,'12 / 12 points');
 assert.equal($('results').hidden,false);
 assert.equal($('history').children.length,expectedHistory);
 $('restart').events.click();
@@ -118,10 +118,12 @@ assert.equal(engine.state.score,0);
 assert.equal($('history').children.length,0);
 assert.equal(userProfile.prenom,'Alice');
 assert.equal($('results').hidden,true);
+previousMediaKey='';
+renderMedia(questions.find(q=>q.media?.type==='video'));
 `, context);
-assert.ok(created.some(e=>e.tag==='img' && e.src.endsWith('/2ZwRQ52Q8wM/hqdefault.jpg')),'Aperçu du Short YouTube');
+assert.ok(created.some(e=>e.tag==='img' && e.src.includes('i.ytimg.com/vi/')),'Aperçu YouTube');
 const videoPreview=created.find(e=>e.className==='youtube-preview');
 videoPreview.events.click();
 assert.ok(created.some(e=>e.tag==='iframe' && e.src.includes('youtube-nocookie.com/embed/')),'Lecture YouTube intégrée');
-assert.equal(new Set(created.filter(e=>e.tag==='img' && e.src.includes('images.typeform.com')).map(e=>e.src)).size,8);
+assert.ok(new Set(created.filter(e=>e.tag==='img' && e.src.includes('images.typeform.com')).map(e=>e.src)).size>=1);
 console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');

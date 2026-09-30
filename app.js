@@ -326,10 +326,13 @@ function renderQuestion() {
   $('instruction').hidden = !$('instruction').textContent;
   const scoredQuestions = questions.filter(item => item.bonneReponse != null);
   if (q.points > 0) {
+    const adaptivePosition = engine.state.levelQuestionNumber;
     const levelQuestions = scoredQuestions.filter(item => item.niveau === q.niveau);
-    $('progress-text').textContent = `Question ${levelQuestions.indexOf(q) + 1} sur ${levelQuestions.length}`;
-    $('progress').max = levelQuestions.length;
-    $('progress').value = levelQuestions.indexOf(q) + 1;
+    $('progress-text').textContent = adaptivePosition === 4
+      ? 'Question de départage'
+      : `Question ${adaptivePosition || levelQuestions.indexOf(q) + 1} sur ${adaptivePosition ? 3 : levelQuestions.length}`;
+    $('progress').max = adaptivePosition === 4 ? 4 : adaptivePosition ? 3 : levelQuestions.length;
+    $('progress').value = adaptivePosition || levelQuestions.indexOf(q) + 1;
     $('question-level').textContent = `Niveau ${q.niveau} sur 8`;
   }
   $('progress-label').hidden = !q.points;
@@ -583,6 +586,7 @@ function showResults() {
     alphabet: 'Nous te conseillons de commencer par l’alphabet hébraïque.',
     threshold: 'Le seuil d’erreurs prévu pour cette étape est atteint. Nous nous arrêtons ici.',
     completed: 'Tu as parcouru toutes les étapes proposées. Bravo !',
+    adaptive: 'Le parcours adaptatif a identifié ton niveau le plus précis.',
   };
   $('result-title').textContent = `Merci ${userProfile.prenom}, voici ton bilan.`;
   $('score').textContent = state.attempted ? `${state.score} / ${state.possible} points` : 'Pas de question notée';
@@ -612,7 +616,7 @@ $('next').addEventListener('click', () => {
 });
 $('start').addEventListener('click', startTest);
 $('restart').addEventListener('click', startTest);
-$('welcome-description').textContent = 'Le parcours s’adapte à tes réponses. Tu pourras t’arrêter entre deux niveaux.';
+$('welcome-description').textContent = 'Le parcours s’adapte à tes réponses avec de courts mini-tests de trois questions.';
 renderIntakeStep(false);
 
 async function loadQuestionSet() {

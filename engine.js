@@ -1,5 +1,155 @@
 // Moteur sans dépendance, indépendant de l’affichage.
-function createQuizEngine(questionList, configuration) {
+function createAdaptiveQuizEngine(questionList, configuration) {
+  const byId = new Map(questionList.map(question => [question.id, question]));
+  const adaptive = configuration.adaptive;
+  const blocks = configuration.blocs;
+  const blockByQuestion = new Map();
+  for (const block of blocks) for (const id of block.questions) blockByQuestion.set(id, block);
+  const normalize = value => String(value).normalize('NFKD')
+    .replace(/[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7\u200e\u200f]/g, '').trim().replace(/\s+/g, ' ');
+  const selfAssessmentIds = adaptive.selfAssessmentIds;
+  const minLevel = adaptive.minLevel || 1;
+  const maxLevel = adaptive.maxLevel || 8;
+  let state;
+
+  function question(id) {
+    const item = byId.get(id);
+    if (!item) throw new Error(`Question adaptative inconnue : ${id}`);
+    return item;
+  }
+
+  function levelTest(level) {
+    const test = adaptive.tests[String(level)];
+    if (!test || !Array.isArray(test.primary) || test.primary.length !== 3 || !test.tiebreaker) {
+      throw new Error(`Mini-test adaptatif invalide pour le niveau ${level}.`);
+    }
+    return test;
+  }
+
+  function beginLevel(level) {
+    const test = levelTest(level);
+    state.mode = 'test';
+    state.currentLevel = level;
+    state.testQuestionIndex = 0;
+    state.testCorrect = 0;
+    state.currentQuestionId = test.primary[0];
+    state.levelQuestionNumber = 1;
+  }
+
+  function finish() {
+    state.finished = true;
+    state.reason = 'adaptive';
+    state.currentQuestionId = null;
+    state.variables.niveau_lavi = String(Math.max(minLevel, state.lowerBound));
+  }
+
+  function reset() {
+    for (const id of selfAssessmentIds) question(id);
+    for (let level = minLevel; level <= maxLevel; level += 1) {
+      const test = levelTest(level);
+      [...test.primary, test.tiebreaker].forEach(question);
+    }
+    state = {
+      answers: {}, variables: {...configuration.variables}, score: 0, possible: 0,
+      attempted: 0, answered: false, finished: false, reason: '', last: null,
+      mode: 'orientation', orientationIndex: 0, currentQuestionId: selfAssessmentIds[0],
+      currentLevel: null, levelQuestionNumber: 0, testQuestionIndex: 0, testCorrect: 0,
+      lowerBound: 0, upperBound: maxLevel + 1, levelResults: {},
+    };
+    state.variables.niveau_lavi = String(minLevel);
+  }
+
+  function current() {
+    return state.finished ? null : question(state.currentQuestionId);
+  }
+
+  function submit(answer) {
+    if (state.finished || state.answered) return null;
+    const item = current();
+    const empty = answer == null || (typeof answer === 'string' && !answer.trim()) || (Array.isArray(answer) && !answer.length);
+    if (empty && item.obligatoire) throw new Error('Réponds à cette question.');
+    if (!empty && item.type === 'qcm') {
+      const values = item.multiple ? answer : [answer];
+      if (!Array.isArray(values) || !values.every(value => item.choix.some(choice => choice.valeur === value))) {
+        throw new Error('Choix non valide.');
+      }
+    }
+    state.answers[item.id] = empty ? null : answer;
+    const scored = item.bonneReponse != null;
+    const correct = scored && !empty && (item.type === 'text'
+      ? normalize(answer) === normalize(item.bonneReponse)
+      : item.multiple ? answer.length === 1 && answer[0] === item.bonneReponse : answer === item.bonneReponse);
+    if (scored) {
+      state.possible += item.points;
+      state.attempted += 1;
+      if (correct) state.score += item.points;
+    }
+    state.answered = true;
+    state.last = {questionId: item.id, scored, correct, skipped: empty};
+    return state.last;
+  }
+
+  function nextCandidate() {
+    if (state.upperBound - state.lowerBound <= 1) return finish();
+    let candidate = Math.ceil((state.lowerBound + state.upperBound) / 2);
+    candidate = Math.max(state.lowerBound + 1, Math.min(state.upperBound - 1, candidate));
+    beginLevel(candidate);
+  }
+
+  function completeLevel() {
+    const total = state.testQuestionIndex === 3 ? 4 : 3;
+    const passed = state.testCorrect === 3;
+    state.levelResults[state.currentLevel] = { correct: state.testCorrect, total, passed };
+    if (passed) state.lowerBound = Math.max(state.lowerBound, state.currentLevel);
+    else state.upperBound = Math.min(state.upperBound, state.currentLevel);
+    nextCandidate();
+  }
+
+  function next() {
+    if (state.finished || !state.answered) return;
+    state.answered = false;
+    if (state.mode === 'orientation') {
+      state.orientationIndex += 1;
+      if (state.orientationIndex < selfAssessmentIds.length) {
+        state.currentQuestionId = selfAssessmentIds[state.orientationIndex];
+        return;
+      }
+      let consecutiveYes = 0;
+      for (const id of selfAssessmentIds) {
+        if (state.answers[id] !== true) break;
+        consecutiveYes += 1;
+      }
+      const startLevel = adaptive.startLevelByYesCount[consecutiveYes];
+      beginLevel(startLevel);
+      return;
+    }
+
+    if (state.last?.correct) state.testCorrect += 1;
+    const test = levelTest(state.currentLevel);
+    if (state.testQuestionIndex < 2) {
+      state.testQuestionIndex += 1;
+      state.levelQuestionNumber = state.testQuestionIndex + 1;
+      state.currentQuestionId = test.primary[state.testQuestionIndex];
+      return;
+    }
+    if (state.testQuestionIndex === 2 && state.testCorrect === 2) {
+      state.testQuestionIndex = 3;
+      state.levelQuestionNumber = 4;
+      state.currentQuestionId = test.tiebreaker;
+      return;
+    }
+    completeLevel();
+  }
+
+  reset();
+  return {
+    reset, current, submit, next,
+    get state() { return state; },
+    get block() { return blockByQuestion.get(state.currentQuestionId) || { id: 'orientation', questions: selfAssessmentIds, niveau: null }; },
+  };
+}
+
+function createLegacyQuizEngine(questionList, configuration) {
   const byId = new Map(questionList.map(q => [q.id, q]));
   const blocks = configuration.blocs;
   const blockIndexes = new Map(blocks.map((block, index) => [block.id, index]));
@@ -88,5 +238,11 @@ function createQuizEngine(questionList, configuration) {
   }
   reset();
   return { reset, current, submit, next, get state() { return state; }, get block() { return blocks[state.blockIndex]; } };
+}
+
+function createQuizEngine(questionList, configuration) {
+  return configuration.adaptive
+    ? createAdaptiveQuizEngine(questionList, configuration)
+    : createLegacyQuizEngine(questionList, configuration);
 }
 if (typeof module !== 'undefined') module.exports = {createQuizEngine};
