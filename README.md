@@ -124,7 +124,7 @@ Contrôler ensuite la notification du bureau et vérifier que le bilan utilisate
 
 ### Recommandations de classes (branche DEV)
 
-À la fin du test, l’interface appelle `/api/recommendations` avec le seul niveau Lavi. Ce nombre est utilisé comme chapitre cible. La fonction charge la table `Classes` de la base Airtable `Base Cours`, conserve les classes `Zoom` et `Upcoming` qui ont un `Chapitre en cours`, un lien d’inscription et des places, puis les trie selon leur distance au chapitre cible. OpenAI en classe ensuite jusqu’à trois. Si l’appel OpenAI échoue, les classes dont le chapitre est le plus proche sont proposées par règles afin que l’écran reste utile. Le champ Airtable `Niveau` est informatif et ne sert plus de table de correspondance.
+À la fin du test, l’interface appelle `/api/recommendations` avec le seul niveau Lavi. Ce nombre est utilisé comme chapitre cible. La fonction charge la table `Classes` de la base Airtable `Base Cours`, conserve les classes `Zoom` et `Upcoming` qui ont un `Chapitre en cours`, un lien d’inscription et des places (une disponibilité non renseignée reste admise). Seules les classes situées entre le chapitre cible − 1 et le chapitre cible + 1, bornes incluses, sont admissibles : pour un niveau 4, les chapitres 3 à 5. Elles sont ensuite triées selon leur distance au chapitre cible. OpenAI en classe jusqu’à trois. Si l’appel OpenAI échoue, les trois classes admissibles les plus proches sont proposées par règles. Si aucune classe n’est dans la plage, la liste reste vide ; la tolérance n’est jamais élargie. Le champ Airtable `Niveau` est informatif et ne sert plus de table de correspondance.
 
 ### Questions gérées depuis Airtable (branche DEV)
 

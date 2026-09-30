@@ -559,7 +559,7 @@ async function loadClassRecommendations(state) {
     if (requestId !== recommendationRequest) return;
     const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
     if (!recommendations.length) {
-      status.textContent = 'Aucune classe ouverte ne correspond exactement à ton niveau pour le moment. Nous te contacterons avec une proposition.';
+      status.textContent = 'Aucune classe ouverte ne correspond à ton niveau pour le moment. Nous te contacterons avec une proposition.';
       return;
     }
     status.textContent = recommendations.length === 1

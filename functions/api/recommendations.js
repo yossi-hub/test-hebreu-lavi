@@ -76,6 +76,7 @@ export function selectEligible(records, niveauLavi) {
       && item.statut.toLowerCase() === 'upcoming')
     .filter(item => item.lien && (item.places_restantes == null || item.places_restantes > 0))
     .map(item => ({ ...item, ecart_chapitre: Math.abs(item.chapitre_en_cours - niveauLavi) }))
+    .filter(item => item.ecart_chapitre <= 1)
     .sort((a, b) => a.ecart_chapitre - b.ecart_chapitre)
     .slice(0, 20);
 }
@@ -159,7 +160,8 @@ async function rankWithOpenAI(env, niveauLavi, candidates) {
         'Choisis au maximum trois classes parmi la liste fournie, sans jamais inventer un identifiant ni une information.',
         'Le niveau Lavi calculé correspond au chapitre cible du participant.',
         'Classe d’abord les options dont le chapitre_en_cours est le plus proche du niveau_lavi et utilise ecart_chapitre pour les comparer.',
-        'À écart comparable, privilégie une classe Upcoming, avec des places, puis une classe In Progress pertinente.',
+        'Les classes fournies sont Zoom et Upcoming, avec un écart maximal de 1 chapitre par rapport au chapitre cible, bornes incluses.',
+        'À écart comparable, privilégie les classes dont la disponibilité des places est confirmée.',
         'Rédige chaque raison en français, chaleureuse, concrète et en une phrase.',
         'Ne mentionne pas de donnée absente et ne promets pas une inscription.',
       ].join(' '),
