@@ -39,6 +39,19 @@ const records = base.questions.map((q, index) => {
     },
   };
 });
+const archivedIds = new Set([
+  'bfff1062-27eb-455c-bb6b-ae72d17c0495',
+  '8982d9c6-c435-48ee-8d81-a50df364117a',
+  '0eb94c71-79ab-4c98-b1c4-5279a8bd85c4',
+  '40e49b2e-f3cb-418e-a393-a32593404b5f',
+  '646a923f-8ff6-43a7-819c-93c54e72e586',
+  '37209185-6d5f-4382-8b38-f244f94cd8b0',
+  '0383b52e-6fbf-4194-ac16-dc470a04e5de',
+  '8b2b6d34-3da7-4174-8504-01820608eac9',
+]);
+for (const record of records) {
+  if (archivedIds.has(record.fields[FIELDS.id])) record.fields[FIELDS.editorialState] = 'Archivée';
+}
 for (const [index, step] of [
   { key: 'identite', label: 'Prénom et nom', question: 'Donne-moi ton prénom et ton nom, s’il te plaît.', type: 'text', autocomplete: 'name' },
   { key: 'email', label: 'Email', question: 'Quelle est ton adresse email ?', type: 'email', autocomplete: 'email' },
@@ -63,8 +76,8 @@ for (const [index, step] of [
 
 const first = compileQuestionSet(base, records);
 assert.deepEqual(first.errors, []);
-assert.deepEqual(first.summary, { testQuestions: 80, scoredQuestions: 68, profileQuestions: 3 });
-assert.equal(first.snapshot.parcours.blocs.length, 33);
+assert.deepEqual(first.summary, { testQuestions: 72, scoredQuestions: 68, profileQuestions: 3 });
+assert.equal(first.snapshot.parcours.blocs.length, 26);
 assert.equal(first.snapshot.profileQuestions[1].type, 'email');
 const engine = createQuizEngine(first.snapshot.questions, first.snapshot.parcours);
 let steps = 0;
@@ -78,8 +91,8 @@ while (!engine.state.finished) {
   engine.submit(answer);
   engine.next();
 }
-assert.equal(engine.state.variables.niveau_lavi, '9');
-assert.equal(engine.state.score, 68);
+assert.equal(engine.state.variables.niveau_lavi, '8');
+assert.equal(engine.state.score, 12);
 
 const changed = structuredClone(records);
 const firstScored = changed.find(record => record.fields[FIELDS.points] > 0);
@@ -122,11 +135,11 @@ const request = (url, method = 'GET', token = env.QUIZ_ADMIN_TOKEN) => new Reque
 assert.equal((await onRequestGet({ request: request('https://test.local/api/question-set?preview=1', 'GET', ''), env })).status, 401);
 const preview = await onRequestGet({ request: request('https://test.local/api/question-set?preview=1'), env });
 assert.equal(preview.status, 200);
-assert.equal((await preview.json()).summary.testQuestions, 80);
+assert.equal((await preview.json()).summary.testQuestions, 72);
 const publication = await onRequestPost({ request: request('https://test.local/api/question-set', 'POST'), env });
 assert.equal(publication.status, 200);
 assert.ok(row.version);
 const published = await onRequestGet({ request: request('https://test.local/api/question-set'), env });
-assert.equal((await published.json()).snapshot.questions.length, 80);
+assert.equal((await published.json()).snapshot.questions.length, 72);
 globalThis.fetch = originalFetch;
 console.log('OK : import Airtable, validation du parcours, aperçu protégé et publication stable.');

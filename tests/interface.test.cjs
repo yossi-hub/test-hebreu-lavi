@@ -25,6 +25,8 @@ const context=vm.createContext({assert,URL,URLSearchParams,fetch:async()=>({ok:t
   getElementById(id) {assert.ok(elements[id],`Identifiant absent : ${id}`);return elements[id];},
   createElement(tag) {const e=new Element(tag);created.push(e);return e;},
 }});
+context.scrollPositions=[];
+context.scrollTo=({top})=>context.scrollPositions.push(top);
 for(const file of ['questions.js','engine.js','app.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context);
 vm.runInContext(`
 const firstQcm=questions.find(q=>q.id==='353a37e5-2d45-4bec-a856-a8312586b6f0');
@@ -56,72 +58,65 @@ assert.equal(userProfile.prenom,'Alice');
 assert.equal(userProfile.nom,'Martin');
 assert.equal($('intake-confirmation').textContent,'Parfait, merci Alice. On peut commencer le test 😊');
 $('start').events.click();
+assert.equal(testIntroShown,true);
+const intro=$('history').children[0];
+assert.equal(intro.children[1].textContent,'OK Alice,');
+assert.match(intro.children[2].textContent,/adaptatif/);
+assert.match(intro.children[2].textContent,/Passer cette question/);
+assert.equal($('question-title').textContent,'Avant de commencer');
+assert.equal($('choices').children.length,5);
+const orientationSubmit=$('choices').children[4];
+assert.equal(orientationSubmit.disabled,true);
+for(let index=0;index<4;index++) {
+  const noButton=$('choices').children[index].children[1].children[1];
+  noButton.events.click();
+  assert.equal(noButton.attributes['aria-pressed'],'true');
+}
+assert.equal(orientationSubmit.disabled,false);
+orientationSubmit.events.click();
+assert.equal(engine.state.mode,'test');
+assert.equal(scrollPositions.at(-1),0);
 let steps=0;
 let expectedHistory=$('history').children.length;
-let introCounted=false;
 while(!engine.state.finished) {
   assert.ok(steps++<100);
   const q=engine.current();
-  if(q.points>0 && !introCounted) {
-    assert.equal(testIntroShown,true);
-    expectedHistory++;
-    introCounted=true;
-    const intro=$('history').children[$('history').children.length-1];
-    assert.equal(intro.children[1].textContent,'OK Alice,');
-  }
   const hadPassage=!$('passage-message').hidden;
   const historyBefore=$('history').children.length;
   assert.equal($('question-title').textContent,formatQuestionText(q.texte).text);
   assert.equal($('question-title').dir,/[\u0590-\u05ff]/.test(q.texte)?'rtl':'ltr');
   assert.equal($('written-form').hidden,q.type!=='text');
+  assert.equal($('skip').hidden,false);
   if(q.type==='text') {
-    if(q.reponseOuiNon) {
-      $('written-answer').value='peut-être';
-      $('written-form').events.submit({preventDefault(){}});
-      assert.equal(engine.state.answered,false);
-      assert.equal($('answer-error').hidden,false);
-    }
-    $('written-answer').value=q.reponseOuiNon?'non':q.reponseConversationnelle?'Je préfère les deux':'Paris';
+    $('written-answer').value=q.bonneReponse;
     $('written-form').events.submit({preventDefault(){}});
   } else {
-    const selfAssessmentIds=['283a501f-c840-4b74-9e88-545152769ef9','547b1f37-9fc4-4f7b-8d47-73297c1dd2aa','1933dae8-da62-464c-a72d-63141c72873b','ce09c281-36db-4e76-ba69-778b64eb6172'];
-    const selected=q.bonneReponse!=null?q.bonneReponse:selfAssessmentIds.includes(q.id)?false:q.multiple?q.choix[0].valeur:true;
+    const selected=q.bonneReponse;
     const index=displayedChoices.findIndex(c=>c.valeur===selected);
     assert.ok(index>=0);
     $('choices').children[index].events.click();
     if(q.multiple) $('confirm-choices').events.click();
   }
-  let introAddedThisTurn=false;
-  if(!introCounted && testIntroShown) {
-    expectedHistory++;
-    introCounted=true;
-    introAddedThisTurn=true;
-    const intro=$('history').children[$('history').children.length-1];
-    assert.equal(intro.children[1].textContent,'OK Alice,');
-  }
-  if(['283a501f-c840-4b74-9e88-545152769ef9','547b1f37-9fc4-4f7b-8d47-73297c1dd2aa','1933dae8-da62-464c-a72d-63141c72873b','ce09c281-36db-4e76-ba69-778b64eb6172','eb133ca8-54dc-489f-9b9a-2f1ab4553326','01bd29a5-dc50-4012-959f-d415559996c6'].includes(q.id)) {
-    expectedHistory+=2+Number(hadPassage);
-    assert.equal($('history').children.length,historyBefore+2+Number(hadPassage)+Number(introAddedThisTurn));
-    assert.notEqual(engine.current().id,q.id);
-    continue;
-  }
   expectedHistory+=3+Number(hadPassage);
-  assert.equal($('history').children.length,historyBefore+3+Number(hadPassage)+Number(introAddedThisTurn));
+  assert.equal($('history').children.length,historyBefore+3+Number(hadPassage));
   if(!engine.state.finished) assert.notEqual(engine.current().id,q.id);
 }
-assert.equal(engine.state.score,68);
-assert.equal($('score').textContent,'68 / 68 points');
+assert.equal(engine.state.score,12);
+assert.equal($('score').textContent,'12 / 12 points');
 assert.equal($('results').hidden,false);
 assert.equal($('history').children.length,expectedHistory);
 $('restart').events.click();
 assert.equal(engine.state.score,0);
-assert.equal($('history').children.length,0);
+assert.equal($('history').children.length,1);
+assert.equal($('question-title').textContent,'Avant de commencer');
 assert.equal(userProfile.prenom,'Alice');
 assert.equal($('results').hidden,true);
+previousMediaKey='';
+renderMedia(questions.find(q=>q.media?.type==='video'));
 `, context);
-assert.ok(created.some(e=>e.tag==='img' && e.src.endsWith('/2ZwRQ52Q8wM/hqdefault.jpg')),'Aperçu du Short YouTube');
+assert.ok(created.some(e=>e.tag==='img' && e.src.includes('i.ytimg.com/vi/')),'Aperçu YouTube');
 const videoPreview=created.find(e=>e.className==='youtube-preview');
 videoPreview.events.click();
 assert.ok(created.some(e=>e.tag==='iframe' && e.src.includes('youtube-nocookie.com/embed/')),'Lecture YouTube intégrée');
-assert.equal(new Set(created.filter(e=>e.tag==='img' && e.src.includes('images.typeform.com')).map(e=>e.src)).size,8);
+assert.ok(new Set(created.filter(e=>e.tag==='img' && e.src.includes('images.typeform.com')).map(e=>e.src)).size>=1);
 console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');

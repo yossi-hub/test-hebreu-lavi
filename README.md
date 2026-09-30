@@ -21,7 +21,7 @@ Ouvrez http://localhost:8000. Ctrl+C arrête le serveur.
 
 Les cinq questions de démonstration ont été remplacées par les 68 QCM de l’export Typeform `apMZZ52F`, avec leurs choix et bonnes réponses, à un point chacun.
 
-Le parcours contient aussi la connaissance de l’alphabet, quatre autoévaluations où l’utilisateur écrit « oui » ou « non » et sept propositions de continuer. La ville et la préférence présentiel/distanciel ont été retirées du parcours. Les étapes sans bonne réponse ne rapportent pas de points.
+Le parcours contient aussi quatre autoévaluations où l’utilisateur écrit « oui » ou « non ». Elles servent uniquement à choisir le premier niveau testé. La question sur l’alphabet, les sept propositions de continuer, la ville et la préférence présentiel/distanciel ont été retirées du parcours. Les étapes sans bonne réponse ne rapportent pas de points.
 
 Après chaque réponse, le feedback et la question suivante apparaissent immédiatement dans la conversation. Les QCM se répondent uniquement avec leurs boutons ; seuls les champs conversationnels utilisent la barre d’écriture.
 Avant la première question notée, Lavi affiche une courte introduction personnalisée avec le prénom de l’utilisateur.
@@ -35,13 +35,14 @@ Les questions en hébreu sont affichées de droite à gauche. Le point d’inter
 ## Parcours et score
 
 - Le profil demande le prénom et le nom dans une même première question, puis l’email et le téléphone. Tous sont obligatoires ; email au format valide et téléphone non vide.
-- La connaissance de l’alphabet est demandée avant les quatre autoévaluations. Une réponse « Non » saute directement ces quatre questions et affiche le bilan. Sinon, elles sont posées dans l’ordre et, dès leur première réponse « Non », les suivantes sont sautées. Si les quatre réponses sont « Oui », le parcours commence directement au niveau 4. Cette règle remplace le seuil de trois étoiles du Typeform.
+- Les quatre autoévaluations sont toujours posées. Le nombre de « Oui » consécutifs avant le premier « Non » choisit le premier mini-test : 0 → niveau 1, 1 → niveau 2, 2 → niveau 3, 3 → niveau 5 et 4 → niveau 6. Une combinaison contradictoire est donc interprétée prudemment à partir du premier « Non ».
 - Les réponses aux quatre autoévaluations passent immédiatement à la suite, sans message de confirmation du professeur.
-- Les règles importées comptent les erreurs par niveau et proposent de continuer entre deux niveaux. « Non » termine le test.
-- Les groupes sont présentés une question à la fois, mais leurs règles sont évaluées à la fin du groupe. Les seuils restent ceux du fichier source : généralement trois erreurs, avec un arrêt à deux erreurs à la fin du premier groupe du niveau 5.
+- Chaque niveau testé commence par trois questions prédéfinies. Un score de 3/3 valide le niveau, 0/3 ou 1/3 l’invalide, et 2/3 déclenche une quatrième question de départage. Le niveau est validé à 3/4 et invalidé à 2/4.
+- Après chaque mini-test, le moteur resserre automatiquement les bornes et choisit le niveau intermédiaire suivant. Il s’arrête dès qu’un niveau validé et le niveau immédiatement supérieur invalidé sont connus.
+- Les questions d’un même mini-test conservent leur bloc, leur texte, leur image ou leur vidéo d’origine.
 - Les questions facultatives peuvent être passées. Elles rapportent zéro point ; les règles Typeform peuvent compter une absence de réponse comme une erreur. Les champs obligatoires doivent être renseignés.
 - Le score final porte sur les questions effectivement présentées, y compris celles passées ; les niveaux non parcourus ne sont pas comptés au dénominateur.
-- Le niveau conseillé reprend la variable `niveau_lavi` du Typeform. Il peut aller de 1 à 9 : réussir le huitième niveau oriente vers le niveau 9. Ce n’est pas le numéro du dernier niveau parcouru.
+- Le niveau conseillé est compris entre 1 et 8. Il correspond au niveau validé le plus élevé ; un utilisateur qui échoue au niveau 1 reçoit le niveau 1 à commencer.
 - Recommencer remet à zéro réponses, score, variables et historique du test. Le profil reste en mémoire.
 
 ### Adaptations documentées
@@ -128,7 +129,7 @@ Contrôler ensuite la notification du bureau et vérifier que le bilan utilisate
 
 ### Questions gérées depuis Airtable (branche DEV)
 
-La table [Questions test hébreu](https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA) contient 80 questions du parcours, 3 questions de profil et 2 questions importées mais hors parcours. Airtable sert de brouillon éditorial. Le site public charge la dernière version publiée au démarrage du test ; si aucune version n’existe encore, il utilise les questions embarquées dans `questions.js`. Un test déjà commencé conserve sa version jusqu’au rechargement de la page.
+La table [Questions test hébreu](https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA) contient 72 éléments actifs du parcours — 68 questions notées et 4 questions d’orientation —, 3 questions de profil et des questions archivées ou hors parcours. Airtable sert de brouillon éditorial. Le site public charge la dernière version publiée au démarrage du test ; si aucune version n’existe encore, il utilise les questions embarquées dans `questions.js`. Un test déjà commencé conserve sa version jusqu’au rechargement de la page.
 
 Sur la branche DEV, ouvrir `/admin.html`, entrer le code d’administration, cliquer sur **Vérifier le brouillon**, puis **Tester dans l’application**. Si l’aperçu convient, cliquer sur **Publier sur DEV**. La publication relit Airtable et enregistre une copie stable dans D1. Elle est refusée si une question de profil manque, si le JSON des choix est invalide, si un bloc devient vide ou si une règle du parcours fait référence à une question retirée. Une question marquée `Brouillon` doit être passée à `Validée` avant publication ; `Archivée` l’exclut. Les questions `Hors parcours` restent dans Airtable sans apparaître dans le test.
 
@@ -162,4 +163,8 @@ node tests/question-set.test.mjs
 node --test tests/results.test.mjs
 ```
 
-Les tests vérifient les 68 réponses, le parcours complet, l’entrée directe au niveau 4, les arrêts des huit niveaux, les sept refus de continuer, la correction finale, les réponses facultatives, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.
+Les quatre questions d’orientation sont présentées ensemble avec un choix Oui/Non. Le test explique dès le départ son fonctionnement adaptatif et permet de passer toute question notée jugée trop difficile. Il enchaîne ensuite des mini-tests adaptatifs de trois questions, avec une quatrième question de départage uniquement en cas de doute.
+
+Au démarrage du mini-test, la page remonte automatiquement pour rendre la progression et la première question visibles. Chaque niveau disposant de questions vidéo dans la banque inclut au moins une question de compréhension orale dans ses trois questions principales (niveaux 2 et 4 à 8). Les niveaux 1 et 3 n’ont actuellement aucune question vidéo dans la banque Airtable.
+
+Les tests vérifient les cinq routes d’orientation, l’écran groupé Oui/Non, les mini-tests adaptatifs de trois questions, la quatrième question de départage, le resserrement des bornes, les résultats des niveaux 1 à 8, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.

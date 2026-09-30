@@ -2326,6 +2326,83 @@ const questions = [
 ];
 
 const parcours = {
+  "adaptive": {
+    "minLevel": 1,
+    "maxLevel": 8,
+    "selfAssessmentIds": [
+      "283a501f-c840-4b74-9e88-545152769ef9",
+      "547b1f37-9fc4-4f7b-8d47-73297c1dd2aa",
+      "1933dae8-da62-464c-a72d-63141c72873b",
+      "ce09c281-36db-4e76-ba69-778b64eb6172"
+    ],
+    "startLevelByYesCount": [1, 2, 3, 5, 6],
+    "tests": {
+      "1": {
+        "primary": [
+          "353a37e5-2d45-4bec-a856-a8312586b6f0",
+          "7d872815-fb07-4dad-970a-c12a59b77380",
+          "79016f08-b167-4aea-b25f-b7d493377d79"
+        ],
+        "tiebreaker": "09fb0a26-3791-46eb-9720-ac252185de1b"
+      },
+      "2": {
+        "primary": [
+          "aba182df-d9e1-4f89-892e-ca4d5e18a87a",
+          "878251c4-943b-4a36-b04b-3ffae1149f8d",
+          "52bbe157-368b-4628-927d-e81f0e3b02a7"
+        ],
+        "tiebreaker": "461c8c21-8667-411f-9ea0-4651c28be52b"
+      },
+      "3": {
+        "primary": [
+          "5a773145-2196-4bd2-a8ed-6e6fbeec249a",
+          "d9c55183-b586-4b26-8242-8c6ab018efdd",
+          "717115c8-ef1f-4408-92a0-2ced224873f7"
+        ],
+        "tiebreaker": "58d3f038-de5f-4cbf-87a4-7bb21c7ca566"
+      },
+      "4": {
+        "primary": [
+          "6c26eb82-61eb-415b-9ffc-92d46604623b",
+          "8905ea6e-629c-4895-9077-8cf492bd732a",
+          "35bfa2fa-0786-41e4-b608-284c24bcbdbd"
+        ],
+        "tiebreaker": "1368708d-2728-4a6d-bcb1-8b2c624373d2"
+      },
+      "5": {
+        "primary": [
+          "6b1e5fc5-ced1-4e68-8656-53c6953783c2",
+          "ff2dddac-c0bb-4097-8fed-9a6f103a82ac",
+          "e8120fe8-f6e8-47d2-bed0-1fecee56705f"
+        ],
+        "tiebreaker": "e302de0c-d53b-4178-9f39-5fdea3170cc4"
+      },
+      "6": {
+        "primary": [
+          "89de6932-c2b6-49e5-91ff-4aea84479327",
+          "ceb51992-d270-4ad8-a13a-7932528e6f6a",
+          "77982966-0a9e-4665-951b-06bb50d6f128"
+        ],
+        "tiebreaker": "8a1c0335-c211-4de6-b128-358f661b3383"
+      },
+      "7": {
+        "primary": [
+          "52896224-320f-40ae-bdef-3118787d4180",
+          "e6232c0c-8bc9-4e71-b8cb-b43c74e1faf3",
+          "676f6dd8-d851-4e2c-8d87-fc99ec97e798"
+        ],
+        "tiebreaker": "689f32fb-ab6f-4628-991e-2249c82de6cf"
+      },
+      "8": {
+        "primary": [
+          "6e4c3df8-f055-4da4-9cf1-52ab3333409f",
+          "25c1cd0a-9b5a-4f68-b814-fb79d2eb6523",
+          "5ed6eb50-c8c7-4b49-8e6d-1050866979a2"
+        ],
+        "tiebreaker": "ea40ac43-462d-481c-aa56-c116ccc84ed3"
+      }
+    }
+  },
   "blocs": [
     {
       "id": "97c2ebd6-8ab3-4a23-a147-704aedcc9ede",
