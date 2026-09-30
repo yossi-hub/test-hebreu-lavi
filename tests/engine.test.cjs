@@ -90,6 +90,15 @@ tiebreak.submit(tiebreak.current().bonneReponse);
 tiebreak.next();
 assert.deepEqual(tiebreak.state.levelResults['6'], {correct: 3, total: 4, passed: true});
 
+const skippableRequired = createQuizEngine(questions, parcours);
+for (const value of [false, false, false, false]) { skippableRequired.submit(value); skippableRequired.next(); }
+skippableRequired.submit(skippableRequired.current().bonneReponse);
+skippableRequired.next();
+assert.equal(skippableRequired.current().obligatoire, true);
+const skipped = skippableRequired.submit(null);
+assert.equal(skipped.skipped, true);
+assert.equal(skipped.correct, false);
+
 tiebreak.reset();
 assert.equal(tiebreak.state.score, 0);
 assert.equal(Object.keys(tiebreak.state.answers).length, 0);

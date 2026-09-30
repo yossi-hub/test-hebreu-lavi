@@ -67,7 +67,7 @@ function createAdaptiveQuizEngine(questionList, configuration) {
     if (state.finished || state.answered) return null;
     const item = current();
     const empty = answer == null || (typeof answer === 'string' && !answer.trim()) || (Array.isArray(answer) && !answer.length);
-    if (empty && item.obligatoire) throw new Error('Réponds à cette question.');
+    if (empty && item.obligatoire && state.mode !== 'test') throw new Error('Réponds à cette question.');
     if (!empty && item.type === 'qcm') {
       const values = item.multiple ? answer : [answer];
       if (!Array.isArray(values) || !values.every(value => item.choix.some(choice => choice.valeur === value))) {

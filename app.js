@@ -96,6 +96,7 @@ $('intake-form').addEventListener('submit', (event) => {
 
 let displayedChoices = [];
 let selection = new Set();
+let orientationSelections = new Map();
 let testIntroShown = false;
 let resultEmailSent = false;
 let recommendationRequest = 0;
@@ -115,6 +116,7 @@ function scrollConversationToBottom() {
 function startTest() {
   if (intakeIndex < intakeSteps.length) return;
   engine.reset();
+  orientationSelections = new Map();
   testIntroShown = false;
   resultEmailSent = false;
   recommendationRequest += 1;
@@ -127,6 +129,7 @@ function startTest() {
   $('class-recommendations-list').replaceChildren();
   $('quiz').hidden = false;
   $('active-question').hidden = false;
+  showTestIntroduction();
   renderQuestion();
 }
 
@@ -139,10 +142,87 @@ function showTestIntroduction() {
   const greeting = document.createElement('p');
   greeting.textContent = `OK ${userProfile.prenom},`;
   const explanation = document.createElement('p');
-  explanation.textContent = 'Voici quelques questions. Tu dois choisir la bonne réponse. On y va ?';
+  explanation.textContent = 'Ce test est adaptatif : les questions s’ajustent à ton niveau. Si une question te semble trop difficile, clique simplement sur « Passer cette question ». Le test te proposera ensuite des questions plus adaptées.';
   bubble.append(sender, greeting, explanation);
   $('history').append(bubble);
   testIntroShown = true;
+}
+
+function renderOrientation() {
+  const orientationQuestions = parcours.adaptive.selfAssessmentIds.map(id => questions.find(question => question.id === id));
+  $('student-message').hidden = true;
+  $('feedback').hidden = true;
+  $('next').hidden = true;
+  $('answer-error').hidden = true;
+  $('progress-label').hidden = true;
+  $('progress').hidden = true;
+  $('passage-message').hidden = true;
+  $('question-passage').replaceChildren();
+  $('question-context').replaceChildren();
+  $('composer').hidden = false;
+  $('composer').classList.toggle('text-composer', false);
+  $('confirm-choices').hidden = true;
+  $('skip').hidden = true;
+  $('written-form').hidden = true;
+  $('question-title').textContent = 'Avant de commencer';
+  $('question-title').dir = 'ltr';
+  $('question-title').lang = 'fr';
+  $('instruction').textContent = 'Pour chacune de ces quatre affirmations, choisis Oui ou Non.';
+  $('instruction').hidden = false;
+  $('choices').replaceChildren();
+  $('choices').className = 'choices orientation-list';
+
+  for (const question of orientationQuestions) {
+    const item = document.createElement('div');
+    item.className = 'orientation-item';
+    const label = document.createElement('p');
+    label.className = 'orientation-question';
+    label.textContent = question.texte;
+    const actions = document.createElement('div');
+    actions.className = 'orientation-actions';
+    for (const [text, value] of [['Oui', true], ['Non', false]]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'orientation-choice';
+      button.textContent = text;
+      button.setAttribute('aria-pressed', String(orientationSelections.get(question.id) === value));
+      button.addEventListener('click', () => {
+        orientationSelections.set(question.id, value);
+        for (const candidate of actions.children) {
+          candidate.setAttribute('aria-pressed', String(candidate === button));
+        }
+        continueButton.disabled = orientationSelections.size !== orientationQuestions.length;
+      });
+      actions.append(button);
+    }
+    item.append(label, actions);
+    $('choices').append(item);
+  }
+
+  const continueButton = document.createElement('button');
+  continueButton.type = 'button';
+  continueButton.className = 'primary orientation-submit';
+  continueButton.textContent = 'Commencer le test →';
+  continueButton.disabled = orientationSelections.size !== orientationQuestions.length;
+  continueButton.addEventListener('click', () => {
+    if (continueButton.disabled) return;
+    try {
+      for (const question of orientationQuestions) {
+        if (engine.current()?.id !== question.id) throw new Error('Le parcours d’orientation est incomplet.');
+        engine.submit(orientationSelections.get(question.id));
+        engine.next();
+      }
+    } catch (error) {
+      $('answer-error').textContent = error.message;
+      $('answer-error').hidden = false;
+      return;
+    }
+    $('choices').className = 'choices';
+    renderQuestion();
+  });
+  $('choices').append(continueButton);
+  $('question-title').focus({ preventScroll: true });
+  scrollConversationToBottom();
 }
 function renderMedia(question) {
   const context = $('question-context');
@@ -307,7 +387,10 @@ function parseTypedAnswer(question, rawAnswer) {
 function renderQuestion() {
   const q = engine.current();
   if (!q) { showResults(); return; }
-  if (q.points > 0 && !testIntroShown) showTestIntroduction();
+  if (engine.state.mode === 'orientation') {
+    renderOrientation();
+    return;
+  }
   selection = new Set();
   $('student-message').hidden = true;
   $('feedback').hidden = true;
@@ -316,7 +399,7 @@ function renderQuestion() {
   $('composer').hidden = false;
   $('composer').classList.toggle('text-composer', q.type === 'text');
   $('confirm-choices').hidden = !q.multiple || q.reponseConversationnelle;
-  $('skip').hidden = q.obligatoire;
+  $('skip').hidden = q.obligatoire && engine.state.mode !== 'test';
   $('written-form').hidden = q.type !== 'text';
   const formattedQuestion = formatQuestionText(q.texte);
   $('question-title').textContent = formattedQuestion.text;
@@ -339,6 +422,7 @@ function renderQuestion() {
   $('progress').hidden = !q.points;
   renderMedia(q);
   $('choices').replaceChildren();
+  $('choices').className = 'choices';
   displayedChoices = [...q.choix];
   if (q.aleatoire) {
     for (let i = displayedChoices.length - 1; i > 0; i--) {
