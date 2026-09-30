@@ -636,6 +636,7 @@ async function loadQuestionSet() {
     const data = await response.json();
     const snapshot = data.snapshot;
     if (!Array.isArray(snapshot?.questions) || !Array.isArray(snapshot?.parcours?.blocs)
+      || !snapshot?.parcours?.adaptive
       || !Array.isArray(snapshot?.profileQuestions)) throw new Error('Version des questions incomplète.');
     questions.splice(0, questions.length, ...snapshot.questions);
     Object.assign(parcours, snapshot.parcours);
