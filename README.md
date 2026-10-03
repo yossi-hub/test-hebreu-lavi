@@ -42,7 +42,7 @@ Les questions en hébreu sont affichées de droite à gauche. Le point d’inter
 - Les questions d’un même mini-test conservent leur bloc, leur texte, leur image ou leur vidéo d’origine.
 - Les questions facultatives peuvent être passées. Elles rapportent zéro point ; les règles Typeform peuvent compter une absence de réponse comme une erreur. Les champs obligatoires doivent être renseignés.
 - Le score final porte sur les questions effectivement présentées, y compris celles passées ; les niveaux non parcourus ne sont pas comptés au dénominateur.
-- Le niveau conseillé est compris entre 1 et 8. Il correspond au niveau validé le plus élevé ; un utilisateur qui échoue au niveau 1 reçoit le niveau 1 à commencer.
+- Le niveau conseillé est le niveau d’inscription, compris entre 1 et 9 : dernier niveau validé + 1. Un utilisateur qui échoue au niveau 1 reçoit Lavi 1 ; celui qui valide le niveau 1 reçoit Lavi 2 ; celui qui valide le niveau 8 reçoit Lavi 9. Les questions évaluent les acquis des niveaux 1 à 8, sans mini-test de niveau 9.
 - Recommencer remet à zéro réponses, score, variables et historique du test. Le profil reste en mémoire.
 
 ### Adaptations documentées
@@ -167,4 +167,4 @@ Les quatre questions d’orientation sont présentées ensemble avec un choix Ou
 
 Au démarrage du mini-test, la page remonte automatiquement pour rendre la progression et la première question visibles. Chaque niveau disposant de questions vidéo dans la banque inclut au moins une question de compréhension orale dans ses trois questions principales (niveaux 2 et 4 à 8). Les niveaux 1 et 3 n’ont actuellement aucune question vidéo dans la banque Airtable.
 
-Les tests vérifient les cinq routes d’orientation, l’écran groupé Oui/Non, les mini-tests adaptatifs de trois questions, la quatrième question de départage, le resserrement des bornes, les résultats des niveaux 1 à 8, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.
+Les tests vérifient les cinq routes d’orientation, l’écran groupé Oui/Non, les mini-tests adaptatifs de trois questions, la quatrième question de départage, le resserrement des bornes, les niveaux d’inscription 1 à 9 pour chaque route d’orientation, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.

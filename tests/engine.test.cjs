@@ -50,14 +50,14 @@ function run({orientation = [true, true, true, true], answer = () => true} = {})
 }
 
 const perfect = run();
-assert.equal(perfect.state.variables.niveau_lavi, '8');
+assert.equal(perfect.state.variables.niveau_lavi, '9');
 assert.equal(perfect.state.attempted, 6);
 assert.equal(perfect.state.score, 6);
 assert.deepEqual(Object.keys(perfect.state.levelResults), ['6', '8']);
 assert.equal(perfect.state.reason, 'adaptive');
 
 const exactSix = run({ answer: question => question.niveau === 6 });
-assert.equal(exactSix.state.variables.niveau_lavi, '6');
+assert.equal(exactSix.state.variables.niveau_lavi, '7');
 assert.equal(exactSix.state.attempted, 9);
 assert.deepEqual(Object.keys(exactSix.state.levelResults), ['6', '7', '8']);
 
@@ -65,6 +65,18 @@ const beginner = run({ orientation: [false, false, false, false], answer: () => 
 assert.equal(beginner.state.variables.niveau_lavi, '1');
 assert.equal(beginner.state.attempted, 3);
 assert.deepEqual(beginner.state.levelResults['1'], {correct: 0, total: 3, passed: false});
+
+// Pour chaque orientation, le niveau d’inscription suit le dernier niveau acquis.
+for (let yesCount = 0; yesCount <= selfAssessmentIds.length; yesCount += 1) {
+  for (let masteredLevel = 0; masteredLevel <= parcours.adaptive.maxLevel; masteredLevel += 1) {
+    const result = run({
+      orientation: selfAssessmentIds.map((_, index) => index < yesCount),
+      answer: question => question.niveau <= masteredLevel,
+    });
+    assert.equal(result.state.variables.niveau_lavi, String(masteredLevel + 1));
+    assert.equal(result.state.lowerBound, masteredLevel);
+  }
+}
 
 const routed = createQuizEngine(questions, parcours);
 for (const value of [true, true, true, false]) {

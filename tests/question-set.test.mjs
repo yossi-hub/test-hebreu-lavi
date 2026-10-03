@@ -91,7 +91,7 @@ while (!engine.state.finished) {
   engine.submit(answer);
   engine.next();
 }
-assert.equal(engine.state.variables.niveau_lavi, '8');
+assert.equal(engine.state.variables.niveau_lavi, '9');
 assert.equal(engine.state.score, 12);
 
 const changed = structuredClone(records);

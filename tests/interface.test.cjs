@@ -104,6 +104,8 @@ while(!engine.state.finished) {
 assert.equal(engine.state.score,12);
 assert.equal($('score').textContent,'12 / 12 points');
 assert.equal($('results').hidden,false);
+assert.equal(engine.state.variables.niveau_lavi,'9');
+assert.ok($('result-summary').textContent.includes('Niveau Lavi conseillé : 9.'));
 assert.equal($('history').children.length,expectedHistory);
 $('restart').events.click();
 assert.equal(engine.state.score,0);

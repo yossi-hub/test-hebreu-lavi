@@ -40,7 +40,8 @@ function createAdaptiveQuizEngine(questionList, configuration) {
     state.finished = true;
     state.reason = 'adaptive';
     state.currentQuestionId = null;
-    state.variables.niveau_lavi = String(Math.max(minLevel, state.lowerBound));
+    // Le résultat indique le niveau où s’inscrire, après le dernier niveau acquis.
+    state.variables.niveau_lavi = String(Math.max(minLevel, state.lowerBound + 1));
   }
 
   function reset() {
