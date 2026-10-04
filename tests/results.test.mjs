@@ -143,7 +143,8 @@ test('Brevo creates then updates the contact by normalized email at the end of t
     assert.equal(contact.attributes.SMS, '+33612345678');
     assert.equal(contact.attributes.LANDLINE_NUMBER, contact.attributes.SMS);
     assert.equal(contact.attributes.WHATSAPP, contact.attributes.SMS);
-    assert.deepEqual(Object.keys(contact.attributes).sort(), ['LANDLINE_NUMBER', 'NIVEAU_LAVI', 'NOM', 'PRENOM', 'SMS', 'WHATSAPP']);
+    assert.equal(contact.attributes.COUNTRY, 'France');
+    assert.deepEqual(Object.keys(contact.attributes).sort(), ['COUNTRY', 'LANDLINE_NUMBER', 'NIVEAU_LAVI', 'NOM', 'PRENOM', 'SMS', 'WHATSAPP']);
     assert.ok(!('forceMerge' in contact));
     assert.ok(!('emailBlacklisted' in contact));
     assert.ok(!('smsBlacklisted' in contact));
@@ -162,6 +163,22 @@ test('Brevo creates then updates the contact by normalized email at the end of t
   assert.deepEqual(db.sqlite.prepare('SELECT status, http_status FROM brevo_sync ORDER BY rowid').all().map(row => ({ ...row })), [
     { status: 'accepted', http_status: 201 }, { status: 'accepted', http_status: 204 },
   ]);
+});
+
+test('Brevo country comes only from Cloudflare and is omitted when unavailable', async t => {
+  const sent = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === 'https://api.brevo.com/v3/contacts') sent.push(JSON.parse(options.body));
+    return new Response(null, { status: 204 });
+  });
+  const env = { MAKE_WEBHOOK_URL: 'https://make.test/webhook', BREVO_API_KEY: 'test-key' };
+  for (const metadata of [{ country: 'IL' }, null, { country: 'XX' }]) {
+    const request = submission({ ...participant, country: 'Forged', location: { country: 'Forged' } }, metadata);
+    assert.equal((await onRequestPost({ request, env })).status, 200);
+  }
+  assert.equal(sent[0].attributes.COUNTRY, 'Israël');
+  assert.ok(!('COUNTRY' in sent[1].attributes));
+  assert.ok(!('COUNTRY' in sent[2].attributes));
 });
 
 test('Brevo and Make failures are tracked independently', async t => {

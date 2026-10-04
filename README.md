@@ -119,6 +119,9 @@ Les attributs suivants doivent exister dans Brevo avec les types indiqués **ava
 | Nom | `NOM` | Texte |
 | Téléphone (même numéro dans les trois champs) | `SMS`, `LANDLINE_NUMBER`, `WHATSAPP` | Téléphone avec indicatif international |
 | Niveau conseillé | `NIVEAU_LAVI` | Nombre |
+| Pays estimé par Cloudflare | `COUNTRY` | Texte |
+
+Le champ existant `COUNTRY` reçoit le nom du pays en français (par exemple `France` ou `Israël`), dérivé de `request.cf.country`. Si le pays est indisponible, il est omis pour préserver une éventuelle valeur existante dans Brevo. La localisation envoyée par le navigateur est ignorée.
 
 L’email est envoyé comme identifiant du contact. Aucun attribut supplémentaire n’est nécessaire : score, points, date et source ne sont pas envoyés par défaut. Avec les noms ci-dessus, `BREVO_ATTRIBUTE_MAP` est inutile. Si cette variable existe déjà, vérifier qu’elle ne réactive pas les champs désactivés.
 
