@@ -75,6 +75,8 @@ test('Pièces jointes : hôte contrôlé, formats et taille bornés, vraie signa
     await adapter.prepare(QUESTION_AUDIO_TABLE).run();
     await assert.rejects(prepareQuestionAudio({ questions: [], devAudioQuestions: [{ id: 'new', type: 'audio_response', audioAttachment: attachment }] }, { QUIZ_DB: adapter }, 'v', new Date().toISOString()), /contenu du fichier/);
     assert.equal(db.prepare('SELECT count(*) n FROM quiz_question_audio').get().n, 0);
+    globalThis.fetch = async () => new Response(null, { status: 302, headers: { Location: 'https://example.com/redirect.wav' } });
+    await assert.rejects(prepareQuestionAudio({ questions: [], devAudioQuestions: [{ id: 'new', type: 'audio_response', audioAttachment: attachment }] }, { QUIZ_DB: adapter }, 'v', new Date().toISOString()), /Téléchargement du fichier audio impossible/);
   } finally { globalThis.fetch = original; }
 });
 
@@ -83,7 +85,7 @@ test('Publication copie le fichier, reste lisible après expiration Airtable et 
   const { db, adapter } = database();
   await adapter.prepare(QUESTION_AUDIO_TABLE).run();
   globalThis.fetch = async (url, options) => {
-    assert.equal(url, attachment.url); assert.equal(options.redirect, 'error');
+    assert.equal(url, attachment.url); assert.equal(options.redirect, 'manual');
     return new Response(wav);
   };
   const snapshot = { questions: [], devAudioQuestions: [{ id: 'new-audio', type: 'audio_response', evaluationCriteria: 'secret criteria', acceptedExamples: ['secret'], audioAttachment: attachment }] };
