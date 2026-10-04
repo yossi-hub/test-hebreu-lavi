@@ -172,6 +172,7 @@ function renderOrientation() {
   $('next').hidden = true;
   $('answer-error').hidden = true;
   $('progress-label').hidden = true;
+  $('support-progress').hidden = true;
   $('progress').hidden = true;
   $('passage-message').hidden = true;
   $('question-passage').replaceChildren();
@@ -446,10 +447,11 @@ function renderQuestion(scrollToTop = false) {
   if (q.points > 0) {
     const adaptivePosition = engine.state.levelQuestionNumber;
     const levelQuestions = scoredQuestions.filter(item => item.niveau === q.niveau);
-    $('progress-text').textContent = adaptivePosition === 4
+    const adaptiveTotal = engine.state.levelQuestionCount;
+    $('progress-text').textContent = engine.state.tiebreakerActive
       ? 'Question de départage'
-      : `Question ${adaptivePosition || levelQuestions.indexOf(q) + 1} sur ${adaptivePosition ? 3 : levelQuestions.length}`;
-    $('progress').max = adaptivePosition === 4 ? 4 : adaptivePosition ? 3 : levelQuestions.length;
+      : `Question ${adaptivePosition || levelQuestions.indexOf(q) + 1} sur ${adaptiveTotal || levelQuestions.length}`;
+    $('progress').max = adaptiveTotal || levelQuestions.length;
     $('progress').value = adaptivePosition || levelQuestions.indexOf(q) + 1;
     $('question-level').textContent = `Niveau ${q.niveau} sur 8`;
     if (typeof audioDemoMode !== 'undefined' && audioDemoMode) {
@@ -461,6 +463,9 @@ function renderQuestion(scrollToTop = false) {
   }
   $('progress-label').hidden = !q.points;
   $('progress').hidden = !q.points;
+  const support = engine.support;
+  $('support-progress').hidden = !support;
+  $('support-progress').textContent = support ? `${support.type === 'video' ? 'Vidéo' : 'Texte'} · question ${support.position} sur ${support.total}` : '';
   renderMedia(q);
   $('choices').replaceChildren();
   $('choices').className = 'choices';
@@ -774,7 +779,7 @@ $('next').addEventListener('click', () => {
 });
 $('start').addEventListener('click', startTest);
 $('restart').addEventListener('click', startTest);
-$('welcome-description').textContent = 'Le parcours s’adapte à tes réponses avec de courts mini-tests de trois questions.';
+$('welcome-description').textContent = 'Le parcours s’adapte à tes réponses. Chaque texte ou vidéo est suivi d’au moins trois questions.';
 renderIntakeStep(false);
 
 async function loadQuestionSet() {

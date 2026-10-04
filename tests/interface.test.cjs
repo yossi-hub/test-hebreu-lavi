@@ -93,6 +93,11 @@ while(!engine.state.finished) {
   const historyBefore=$('history').children.length;
   assert.equal($('question-title').textContent,formatQuestionText(q.texte).text);
   assert.equal($('question-title').dir,/[\u0590-\u05ff]/.test(q.texte)?'rtl':'ltr');
+  assert.equal($('progress-text').textContent, engine.state.tiebreakerActive ? 'Question de départage' : 'Question '+engine.state.levelQuestionNumber+' sur '+engine.state.levelQuestionCount);
+  assert.equal($('progress').max,engine.state.levelQuestionCount);
+  const support=engine.support;
+  assert.equal($('support-progress').hidden,!support);
+  if(support) assert.equal($('support-progress').textContent,(support.type==='video'?'Vidéo':'Texte')+' · question '+support.position+' sur '+support.total);
   assert.equal($('written-form').hidden,q.type!=='text');
   assert.equal($('skip').hidden,false);
   if(q.type==='text') {
@@ -109,8 +114,8 @@ while(!engine.state.finished) {
   assert.equal($('history').children.length,historyBefore+3+Number(hadPassage));
   if(!engine.state.finished) assert.notEqual(engine.current().id,q.id);
 }
-assert.equal(engine.state.score,12);
-assert.equal($('score').textContent,'12 / 12 points');
+assert.equal(engine.state.score,21);
+assert.equal($('score').textContent,'21 / 21 points');
 assert.equal($('results').hidden,false);
 assert.equal(engine.state.variables.niveau_lavi,'9');
 assert.ok($('result-summary').textContent.includes('Niveau Lavi conseillé : 9.'));
@@ -119,6 +124,7 @@ $('restart').events.click();
 assert.equal(engine.state.score,0);
 assert.equal($('history').children.length,1);
 assert.equal($('question-title').textContent,'Avant de commencer');
+assert.equal($('support-progress').hidden,true);
 assert.equal(userProfile.prenom,'Alice');
 assert.equal($('results').hidden,true);
 previousMediaKey='';

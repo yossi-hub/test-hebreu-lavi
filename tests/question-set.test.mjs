@@ -92,7 +92,14 @@ while (!engine.state.finished) {
   engine.next();
 }
 assert.equal(engine.state.variables.niveau_lavi, '9');
-assert.equal(engine.state.score, 12);
+assert.equal(engine.state.score, 21);
+
+const brokenSupport = structuredClone(records);
+const expandedId = base.parcours.adaptive.tests['6'].primary[1];
+brokenSupport.find(record => record.fields[FIELDS.id] === expandedId).fields[FIELDS.mediaUrl] = 'https://youtu.be/AnotherVideo';
+assert.match(compileQuestionSet(base, brokenSupport).errors.join(' '), /3 questions consécutives/);
+brokenSupport.find(record => record.fields[FIELDS.id] === expandedId).fields[FIELDS.editorialState] = 'Archivée';
+assert.match(compileQuestionSet(base, brokenSupport).errors.join(' '), /question nécessaire au parcours adaptatif absente ou archivée/);
 
 const changed = structuredClone(records);
 const firstScored = changed.find(record => record.fields[FIELDS.points] > 0);

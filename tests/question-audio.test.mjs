@@ -137,6 +137,7 @@ test('Le bouton valide et publie en une requête ; une panne de fichier conserve
       [FIELDS.points]: q.points, [FIELDS.level]: q.niveau,
       [FIELDS.choices]: JSON.stringify(q.choix), [FIELDS.answer]: JSON.stringify(q.bonneReponse),
       [FIELDS.multiple]: q.multiple, [FIELDS.random]: q.aleatoire,
+      [FIELDS.mediaType]: q.media?.type, [FIELDS.mediaUrl]: q.media?.url,
       [FIELDS.yesNo]: q.reponseOuiNon, [FIELDS.conversational]: q.reponseConversationnelle,
       [FIELDS.phase]: 'Test', [FIELDS.editorialState]: 'Importée',
       [FIELDS.blockId]: block.id, [FIELDS.blockPosition]: block.questions.indexOf(q.id) + 1,

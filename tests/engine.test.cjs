@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const {createQuizEngine} = require('../engine.js');
+const {createQuizEngine, questionSupport, validateQuestionCoherence} = require('../engine.js');
 
 const {questions, parcours} = vm.runInNewContext(
   fs.readFileSync('questions.js', 'utf8') + '\n({questions, parcours})',
@@ -15,9 +15,9 @@ assert.equal(new Set(scored.map(question => question.niveau)).size, 8);
 assert.deepEqual(Array.from(parcours.adaptive.startLevelByYesCount), [1, 2, 3, 5, 6]);
 for (let level = 1; level <= 8; level += 1) {
   const test = parcours.adaptive.tests[level];
-  assert.equal(test.primary.length, 3);
-  assert.ok(test.tiebreaker);
-  for (const id of [...test.primary, test.tiebreaker]) {
+  assert.equal(test.primary.length, level >= 5 ? 6 : 3);
+  assert.equal(Boolean(test.tiebreaker), level < 5);
+  for (const id of [...test.primary, test.tiebreaker].filter(Boolean)) {
     assert.equal(questions.find(question => question.id === id).niveau, level);
   }
 }
@@ -51,14 +51,14 @@ function run({orientation = [true, true, true, true], answer = () => true} = {})
 
 const perfect = run();
 assert.equal(perfect.state.variables.niveau_lavi, '9');
-assert.equal(perfect.state.attempted, 6);
-assert.equal(perfect.state.score, 6);
+assert.equal(perfect.state.attempted, 12);
+assert.equal(perfect.state.score, 12);
 assert.deepEqual(Object.keys(perfect.state.levelResults), ['6', '8']);
 assert.equal(perfect.state.reason, 'adaptive');
 
 const exactSix = run({ answer: question => question.niveau === 6 });
 assert.equal(exactSix.state.variables.niveau_lavi, '7');
-assert.equal(exactSix.state.attempted, 9);
+assert.equal(exactSix.state.attempted, 18);
 assert.deepEqual(Object.keys(exactSix.state.levelResults), ['6', '7', '8']);
 
 const beginner = run({ orientation: [false, false, false, false], answer: () => false });
@@ -94,18 +94,18 @@ for (const value of [false, true, true, true]) {
 assert.equal(contradictory.state.currentLevel, 1);
 
 const tiebreak = createQuizEngine(questions, parcours);
-for (const value of [true, true, true, true]) { tiebreak.submit(value); tiebreak.next(); }
-const levelSix = parcours.adaptive.tests['6'];
-for (const [index, id] of levelSix.primary.entries()) {
+for (const value of [false, true, true, true]) { tiebreak.submit(value); tiebreak.next(); }
+const levelOne = parcours.adaptive.tests['1'];
+for (const [index, id] of levelOne.primary.entries()) {
   assert.equal(tiebreak.current().id, id);
   const question = tiebreak.current();
   tiebreak.submit(index < 2 ? question.bonneReponse : wrongAnswer(question));
   tiebreak.next();
 }
-assert.equal(tiebreak.current().id, levelSix.tiebreaker);
+assert.equal(tiebreak.current().id, levelOne.tiebreaker);
 tiebreak.submit(tiebreak.current().bonneReponse);
 tiebreak.next();
-assert.deepEqual(tiebreak.state.levelResults['6'], {correct: 3, total: 4, passed: true});
+assert.deepEqual(tiebreak.state.levelResults['1'], {correct: 3, total: 4, passed: true});
 
 const skippableRequired = createQuizEngine(questions, parcours);
 for (const value of [false, false, false, false]) { skippableRequired.submit(value); skippableRequired.next(); }
@@ -130,4 +130,32 @@ tiebreak.submit(true);
 tiebreak.next();
 assert.throws(() => tiebreak.submit('invalid-choice'), /Choix/);
 
-console.log('OK : orientation, mini-tests adaptatifs 3+1, départage, bornes de niveau et reset.');
+// Chaque support est posé au moins trois fois de suite, quel que soit le résultat.
+assert.deepEqual(validateQuestionCoherence(questions, parcours), []);
+const blocks = new Map(parcours.blocs.flatMap(block => block.questions.map(id => [id, block])));
+for (const correctCount of [0, 4, 5, 6]) {
+  const grouped = createQuizEngine(questions, parcours);
+  for (let index = 0; index < 4; index++) { grouped.submit(true); grouped.next(); }
+  const sequence = [];
+  for (let index = 0; index < 6; index++) {
+    assert.equal(grouped.state.currentLevel, 6);
+    sequence.push(questionSupport(grouped.current(), blocks.get(grouped.current().id)));
+    assert.deepEqual(grouped.support, { type: index < 3 ? 'video' : 'text', position: index % 3 + 1, total: 3 });
+    assert.equal(grouped.state.levelQuestionCount, 6);
+    grouped.submit(index < correctCount ? grouped.current().bonneReponse : null);
+    grouped.next();
+  }
+  assert.equal(new Set(sequence.slice(0, 3).map(support => support.key)).size, 1);
+  assert.equal(new Set(sequence.slice(3).map(support => support.key)).size, 1);
+  assert.notEqual(sequence[0].key, sequence[3].key);
+  assert.deepEqual(grouped.state.levelResults['6'], { correct: correctCount, total: 6, passed: correctCount >= 5 });
+}
+const incoherent = JSON.parse(JSON.stringify(parcours));
+[incoherent.adaptive.tests['6'].primary[1], incoherent.adaptive.tests['6'].primary[3]] = [incoherent.adaptive.tests['6'].primary[3], incoherent.adaptive.tests['6'].primary[1]];
+assert.match(validateQuestionCoherence(questions, incoherent).join(' '), /3 questions consécutives/);
+assert.throws(() => createQuizEngine(questions, incoherent), /3 questions consécutives/);
+const canonicalVideo = questions.find(q => q.media?.type === 'video');
+const alternateVideo = { ...canonicalVideo, media: { type: 'video', url: `https://www.youtube.com/watch?v=${canonicalVideo.media.url.split('/').at(-1)}&t=10` } };
+assert.equal(questionSupport(canonicalVideo).key, questionSupport(alternateVideo).key);
+
+console.log('OK : groupes texte/vidéo de trois questions, score 5/6, départage 3+1, bornes de niveau et reset.');

@@ -1,4 +1,45 @@
 // Moteur sans dépendance, indépendant de l’affichage.
+function questionSupport(question, block) {
+  if (question?.media?.type === 'video') {
+    let source = question.media.url;
+    try {
+      const url = new URL(source);
+      const host = url.hostname.replace(/^(www\.|m\.)/, '');
+      const id = host === 'youtu.be' ? url.pathname.split('/')[1]
+        : ['youtube.com', 'youtube-nocookie.com'].includes(host)
+          ? url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1] : null;
+      if (id) source = `youtube:${id}`;
+    } catch { /* La validation éditoriale contrôle déjà les URL. */ }
+    return { key: `video:${source}`, type: 'video' };
+  }
+  if (block?.passage?.trim()) return { key: `text:${block.passage.trim().replace(/\s+/g, ' ')}`, type: 'text' };
+  return null;
+}
+
+function validateQuestionCoherence(questionList, configuration) {
+  if (!configuration.adaptive) return [];
+  const byId = new Map(questionList.map(q => [q.id, q]));
+  const blocks = new Map(configuration.blocs.flatMap(block => block.questions.map(id => [id, block])));
+  const errors = [];
+  for (const [level, test] of Object.entries(configuration.adaptive.tests)) {
+    let current = null, count = 0;
+    const finishGroup = () => {
+      if (current && count < 3) errors.push(`Niveau ${level} : chaque ${current.type === 'video' ? 'vidéo' : 'texte'} doit être suivi d’au moins 3 questions consécutives (groupe de ${count}).`);
+    };
+    for (const id of test.primary) {
+      const support = questionSupport(byId.get(id), blocks.get(id));
+      if (!support || support.key !== current?.key) { finishGroup(); current = support; count = 0; }
+      if (support) count += 1;
+    }
+    finishGroup();
+    if (test.tiebreaker) {
+      const support = questionSupport(byId.get(test.tiebreaker), blocks.get(test.tiebreaker));
+      if (support && support.key !== current?.key) errors.push(`Niveau ${level} : le départage doit conserver le dernier texte ou la dernière vidéo.`);
+    }
+  }
+  return errors;
+}
+
 function audioVerdict(question, answer) {
   if (question.type !== 'audio_response' || answer == null) return;
   if (!['correct', 'incorrect'].includes(answer?.status) || typeof answer.confidence !== 'number'
@@ -27,9 +68,13 @@ function createAdaptiveQuizEngine(questionList, configuration) {
 
   function levelTest(level) {
     const test = adaptive.tests[String(level)];
-    if (!test || !Array.isArray(test.primary) || test.primary.length !== 3 || !test.tiebreaker) {
+    if (!test || !Array.isArray(test.primary) || test.primary.length < 3
+      || new Set(test.primary).size !== test.primary.length
+      || test.tiebreaker && test.primary.includes(test.tiebreaker)) {
       throw new Error(`Mini-test adaptatif invalide pour le niveau ${level}.`);
     }
+    const minimum = test.minCorrect ?? Math.ceil(test.primary.length * 0.75);
+    if (!Number.isInteger(minimum) || minimum < 1 || minimum > test.primary.length) throw new Error(`Seuil adaptatif invalide pour le niveau ${level}.`);
     return test;
   }
 
@@ -39,6 +84,8 @@ function createAdaptiveQuizEngine(questionList, configuration) {
     state.currentLevel = level;
     state.testQuestionIndex = 0;
     state.testCorrect = 0;
+    state.levelQuestionCount = test.primary.length;
+    state.tiebreakerActive = false;
     state.currentQuestionId = test.primary[0];
     state.levelQuestionNumber = 1;
   }
@@ -55,13 +102,16 @@ function createAdaptiveQuizEngine(questionList, configuration) {
     for (const id of selfAssessmentIds) question(id);
     for (let level = minLevel; level <= maxLevel; level += 1) {
       const test = levelTest(level);
-      [...test.primary, test.tiebreaker].forEach(question);
+      [...test.primary, test.tiebreaker].filter(Boolean).forEach(question);
     }
+    const coherenceErrors = validateQuestionCoherence(questionList, configuration);
+    if (coherenceErrors.length) throw new Error(coherenceErrors.join(' '));
     state = {
       answers: {}, variables: {...configuration.variables}, score: 0, possible: 0,
       attempted: 0, answered: false, finished: false, reason: '', last: null,
       mode: 'orientation', orientationIndex: 0, currentQuestionId: selfAssessmentIds[0],
       currentLevel: null, levelQuestionNumber: 0, testQuestionIndex: 0, testCorrect: 0,
+      levelQuestionCount: 0, tiebreakerActive: false,
       lowerBound: 0, upperBound: maxLevel + 1, levelResults: {},
     };
     state.variables.niveau_lavi = String(minLevel);
@@ -106,8 +156,9 @@ function createAdaptiveQuizEngine(questionList, configuration) {
   }
 
   function completeLevel() {
-    const total = state.testQuestionIndex === 3 ? 4 : 3;
-    const passed = state.testCorrect === 3;
+    const test = levelTest(state.currentLevel);
+    const total = state.testQuestionIndex + 1;
+    const passed = state.testCorrect >= (test.minCorrect ?? Math.ceil(test.primary.length * 0.75));
     state.levelResults[state.currentLevel] = { correct: state.testCorrect, total, passed };
     if (passed) state.lowerBound = Math.max(state.lowerBound, state.currentLevel);
     else state.upperBound = Math.min(state.upperBound, state.currentLevel);
@@ -135,15 +186,18 @@ function createAdaptiveQuizEngine(questionList, configuration) {
 
     if (state.last?.correct) state.testCorrect += 1;
     const test = levelTest(state.currentLevel);
-    if (state.testQuestionIndex < 2) {
+    if (state.testQuestionIndex < test.primary.length - 1) {
       state.testQuestionIndex += 1;
       state.levelQuestionNumber = state.testQuestionIndex + 1;
       state.currentQuestionId = test.primary[state.testQuestionIndex];
       return;
     }
-    if (state.testQuestionIndex === 2 && state.testCorrect === 2) {
-      state.testQuestionIndex = 3;
-      state.levelQuestionNumber = 4;
+    const minimum = test.minCorrect ?? Math.ceil(test.primary.length * 0.75);
+    if (state.testQuestionIndex === test.primary.length - 1 && test.tiebreaker && state.testCorrect === minimum - 1) {
+      state.testQuestionIndex = test.primary.length;
+      state.levelQuestionNumber = test.primary.length + 1;
+      state.levelQuestionCount = test.primary.length + 1;
+      state.tiebreakerActive = true;
       state.currentQuestionId = test.tiebreaker;
       return;
     }
@@ -155,6 +209,18 @@ function createAdaptiveQuizEngine(questionList, configuration) {
     reset, current, submit, next,
     get state() { return state; },
     get block() { return blockByQuestion.get(state.currentQuestionId) || { id: 'orientation', questions: selfAssessmentIds, niveau: null }; },
+    get support() {
+      if (state.mode !== 'test' || state.finished) return null;
+      const support = questionSupport(current(), blockByQuestion.get(state.currentQuestionId));
+      if (!support) return null;
+      const test = levelTest(state.currentLevel);
+      const ids = [...test.primary, ...(state.tiebreakerActive ? [test.tiebreaker] : [])];
+      const keyAt = index => questionSupport(question(ids[index]), blockByQuestion.get(ids[index]))?.key;
+      let start = state.testQuestionIndex, end = start;
+      while (start > 0 && keyAt(start - 1) === support.key) start -= 1;
+      while (end + 1 < ids.length && keyAt(end + 1) === support.key) end += 1;
+      return { type: support.type, position: state.testQuestionIndex - start + 1, total: end - start + 1 };
+    },
   };
 }
 
@@ -255,4 +321,4 @@ function createQuizEngine(questionList, configuration) {
     ? createAdaptiveQuizEngine(questionList, configuration)
     : createLegacyQuizEngine(questionList, configuration);
 }
-if (typeof module !== 'undefined') module.exports = {createQuizEngine};
+if (typeof module !== 'undefined') module.exports = {createQuizEngine, questionSupport, validateQuestionCoherence};

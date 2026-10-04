@@ -2335,7 +2335,13 @@ const parcours = {
       "1933dae8-da62-464c-a72d-63141c72873b",
       "ce09c281-36db-4e76-ba69-778b64eb6172"
     ],
-    "startLevelByYesCount": [1, 2, 3, 5, 6],
+    "startLevelByYesCount": [
+      1,
+      2,
+      3,
+      5,
+      6
+    ],
     "tests": {
       "1": {
         "primary": [
@@ -2372,34 +2378,46 @@ const parcours = {
       "5": {
         "primary": [
           "6b1e5fc5-ced1-4e68-8656-53c6953783c2",
+          "eb77db04-6fed-42df-8724-1079208663a8",
+          "bcf6e8d7-3ea6-4f74-b2a9-4b73c338eced",
+          "5b9d3541-f732-4777-b153-077c66b6dc14",
           "ff2dddac-c0bb-4097-8fed-9a6f103a82ac",
           "e8120fe8-f6e8-47d2-bed0-1fecee56705f"
         ],
-        "tiebreaker": "e302de0c-d53b-4178-9f39-5fdea3170cc4"
+        "minCorrect": 5
       },
       "6": {
         "primary": [
           "89de6932-c2b6-49e5-91ff-4aea84479327",
+          "5a89c8de-7dc3-4b5e-b856-66cdfc47ac66",
+          "e0fa7a35-43ce-466b-9781-735f7d3808fd",
+          "d4c507c3-7dc8-4912-9405-988e25b71798",
           "ceb51992-d270-4ad8-a13a-7932528e6f6a",
           "77982966-0a9e-4665-951b-06bb50d6f128"
         ],
-        "tiebreaker": "8a1c0335-c211-4de6-b128-358f661b3383"
+        "minCorrect": 5
       },
       "7": {
         "primary": [
           "52896224-320f-40ae-bdef-3118787d4180",
+          "88ab5ea7-5076-47d2-a650-97ff6d219946",
+          "4e9fbf1e-67f4-4d1a-b1ea-361c1385ec29",
+          "f07549f6-f86e-45c5-826c-1e6ca1946b68",
           "e6232c0c-8bc9-4e71-b8cb-b43c74e1faf3",
           "676f6dd8-d851-4e2c-8d87-fc99ec97e798"
         ],
-        "tiebreaker": "689f32fb-ab6f-4628-991e-2249c82de6cf"
+        "minCorrect": 5
       },
       "8": {
         "primary": [
           "6e4c3df8-f055-4da4-9cf1-52ab3333409f",
+          "e1efeb3d-1554-4c72-8f47-d978996c1c53",
+          "aca959fb-87eb-4ddb-90be-942ec58555f4",
+          "ca4f4372-e545-4eab-8cdd-1f71ab790d63",
           "25c1cd0a-9b5a-4f68-b814-fb79d2eb6523",
           "5ed6eb50-c8c7-4b49-8e6d-1050866979a2"
         ],
-        "tiebreaker": "ea40ac43-462d-481c-aa56-c116ccc84ed3"
+        "minCorrect": 5
       }
     }
   },
