@@ -5,7 +5,7 @@ const userProfile = { prenom: '', nom: '', email: '', telephone: '' };
 const intakeSteps = [
   { key: 'identite', label: 'Prénom et nom', question: 'Donne-moi ton prénom et ton nom, s’il te plaît.', type: 'text', autocomplete: 'name' },
   { key: 'email', label: 'Email', question: 'Quelle est ton adresse email ?', type: 'email', autocomplete: 'email' },
-  { key: 'telephone', label: 'Téléphone', question: 'Quel est ton numéro de téléphone ?', type: 'tel', autocomplete: 'tel' },
+  { key: 'telephone', label: 'Téléphone', question: 'Quel est ton numéro de téléphone avec l’indicatif du pays ? Par exemple : +33 6 12 34 56 78 (France) ou +972 50 123 4567 (Israël).', type: 'tel', autocomplete: 'tel' },
 ];
 let intakeIndex = 0;
 
@@ -37,7 +37,8 @@ function renderIntakeStep(focus = true) {
   input.type = step.type;
   input.name = step.key;
   input.autocomplete = step.autocomplete;
-  input.placeholder = conversationalInput ? `Écris ton ${step.label.toLowerCase()}…` : '';
+  input.placeholder = step.key === 'telephone' ? '+33 6 12 34 56 78' : conversationalInput ? `Écris ton ${step.label.toLowerCase()}…` : '';
+  input.inputMode = step.key === 'telephone' ? 'tel' : step.key === 'email' ? 'email' : 'text';
   input.value = '';
   input.removeAttribute('aria-invalid');
   const submit = $('intake-submit');
@@ -53,7 +54,7 @@ $('intake-form').addEventListener('submit', (event) => {
   if (intakeIndex >= intakeSteps.length) return;
   const step = intakeSteps[intakeIndex];
   const input = $('intake-answer');
-  const value = input.value.trim();
+  let value = input.value.trim();
   let error = '';
   if (!value) error = `Renseigne ton ${step.label.toLowerCase()}.`;
   else if (step.key === 'identite' && value.split(/\s+/).length < 2) {
@@ -61,6 +62,12 @@ $('intake-form').addEventListener('submit', (event) => {
   }
   else if (step.key === 'email' && (!input.validity.valid || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) {
     error = 'Saisis un email valide, par exemple prenom@exemple.fr.';
+  }
+  else if (step.key === 'telephone') {
+    const normalized = value.replace(/[\s().-]/g, '').replace(/^00/, '+');
+    if (!/^\+[1-9]\d{6,14}$/.test(normalized)) {
+      error = 'Ajoute l’indicatif de ton pays, par exemple +33 6 12 34 56 78 ou +972 50 123 4567.';
+    } else value = normalized;
   }
   if (error) {
     $('intake-error').textContent = error;

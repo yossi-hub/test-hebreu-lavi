@@ -34,7 +34,7 @@ Les questions en hébreu sont affichées de droite à gauche. Le point d’inter
 
 ## Parcours et score
 
-- Le profil demande le prénom et le nom dans une même première question, puis l’email et le téléphone. Tous sont obligatoires ; email au format valide et téléphone non vide.
+- Le profil demande le prénom et le nom dans une même première question, puis l’email et le téléphone. Tous sont obligatoires ; email au format valide et téléphone au format international obligatoire (par exemple `+33612345678` ou `+972501234567`). Les espaces et séparateurs sont retirés ; le préfixe `00` est converti en `+`. La saisie et le backend refusent les numéros sans indicatif.
 - Les quatre autoévaluations sont toujours posées. Le nombre de « Oui » consécutifs avant le premier « Non » choisit le premier mini-test : 0 → niveau 1, 1 → niveau 2, 2 → niveau 3, 3 → niveau 5 et 4 → niveau 6. Une combinaison contradictoire est donc interprétée prudemment à partir du premier « Non ».
 - Les réponses aux quatre autoévaluations passent immédiatement à la suite, sans message de confirmation du professeur.
 - Chaque niveau testé commence par trois questions prédéfinies. Un score de 3/3 valide le niveau, 0/3 ou 1/3 l’invalide, et 2/3 déclenche une quatrième question de départage. Le niveau est validé à 3/4 et invalidé à 2/4.
@@ -100,6 +100,52 @@ python3 scripts/import-typeform.py /chemin/vers/export.json
 Dans le navigateur, `userProfile` et l’état du moteur restent en mémoire JavaScript. Un rechargement ou la fermeture de la page les efface. À la fin du test, l’application envoie les coordonnées, le score et le niveau conseillé à la fonction Cloudflare Pages `/api/results`. Cette fonction valide les données, enregistre la participation et sa localisation approximative dans D1, puis les transmet à un webhook Make privé. Le scénario Make utilise deux modules Gmail : un récapitulatif au bureau sur `contact@oulpanlavi.com` et un bilan personnalisé à l’utilisateur. Les médias sont chargés depuis leurs hébergeurs externes.
 
 L’URL du webhook Make doit être enregistrée dans Cloudflare Pages sous la variable chiffrée `MAKE_WEBHOOK_URL`. Elle ne doit jamais être placée dans `app.js` ni commitée dans GitHub.
+
+### Synchronisation des leads Brevo
+
+À la fin du test, `/api/results` appelle aussi l’API Brevo côté serveur. Le contact est identifié par son email normalisé en minuscules. La requête `POST /v3/contacts` utilise `updateEnabled: true` : elle crée le contact ou met à jour ses attributs s’il existe déjà. Un nouveau test avec le même email remplace les résultats précédents sur le contact ; D1 conserve les participations distinctes. Cette intégration vise les **contacts**, sans créer de deal CRM. [Référence API Brevo](https://developers.brevo.com/reference/create-contact).
+
+Configuration Cloudflare Pages, d’abord dans **Preview**, puis dans **Production** après validation :
+
+- `BREVO_API_KEY` : secret chiffré Brevo, jamais dans les fichiers servis au navigateur ou dans Git ;
+- `BREVO_LIST_ID` : ID numérique de la liste à laquelle ajouter le contact (facultatif ; sans cette variable, aucune liste n’est ajoutée) ;
+- `BREVO_ATTRIBUTE_MAP` : objet JSON facultatif pour adapter les noms d’attributs existants.
+
+Les attributs suivants doivent exister dans Brevo avec les types indiqués **avant l’activation**. Brevo peut ignorer un attribut absent ou de type incompatible, même si la requête réussit :
+
+| Champ du test | Attribut Brevo par défaut | Type Brevo |
+| --- | --- | --- |
+| Prénom | `PRENOM` | Texte |
+| Nom | `NOM` | Texte |
+| Téléphone (même numéro dans les trois champs) | `SMS`, `LANDLINE_NUMBER`, `WHATSAPP` | Téléphone avec indicatif international |
+| Niveau conseillé | `NIVEAU_LAVI` | Nombre |
+| Pays estimé par Cloudflare | `COUNTRY` | Texte |
+
+Le champ existant `COUNTRY` reçoit le nom du pays en français (par exemple `France` ou `Israël`), dérivé de `request.cf.country`. Si le pays est indisponible, il est omis pour préserver une éventuelle valeur existante dans Brevo. La localisation envoyée par le navigateur est ignorée.
+
+L’email est envoyé comme identifiant du contact. Aucun attribut supplémentaire n’est nécessaire : score, points, date et source ne sont pas envoyés par défaut. Avec les noms ci-dessus, `BREVO_ATTRIBUTE_MAP` est inutile. Si cette variable existe déjà, vérifier qu’elle ne réactive pas les champs désactivés.
+
+Par exemple, pour utiliser un attribut `NIVEAU` à la place de `NIVEAU_LAVI` :
+
+```json
+{"niveau_lavi":"NIVEAU"}
+```
+
+Les champs non précisés gardent leur attribut par défaut ; `null` permet de ne pas envoyer un champ. Les noms d’attributs doivent être en majuscules et distincts. Le téléphone est normalisé (espaces, tirets, points et parenthèses retirés, préfixe `00` converti en `+`) et copié dans les trois champs existants. Les numéros sans indicatif international, par exemple `0612345678`, sont refusés dans la saisie et par `/api/results` avant tout enregistrement ou transmission : aucun pays n’est déduit de la localisation. Le numéro normalisé est conservé dans D1 et transmis à Make et Brevo. `{"telephone":null}` désactive les trois champs téléphone. La synchronisation ne modifie pas les désinscriptions et ne force aucune fusion de contacts. Un numéro déjà associé à un autre contact peut provoquer un refus Brevo, conservé dans `brevo_sync`.
+
+L’appel Brevo et l’envoi Make s’exécutent indépendamment, après l’enregistrement de la participation. Une erreur Brevo ne bloque pas le bilan Make ; une erreur Make n’empêche pas la synchronisation Brevo. Le backend attend les deux appels avant de répondre, avec un délai maximum de huit secondes pour l’appel HTTP Brevo. Le succès affiché à l’utilisateur concerne l’envoi du bilan via Make.
+
+La table D1 `brevo_sync` est créée automatiquement sans modifier la table des participations. Elle contient `participation_id`, `status`, `http_status` et `updated_at`. Les statuts sont `pending`, `accepted`, `failed`, `not_configured` (clé absente) ou `configuration_error`. `accepted` confirme seulement l’acceptation HTTP par Brevo ; vérifier les valeurs du contact dans Brevo lors du premier essai. Sans D1, la synchronisation continue mais son statut n’est pas conservé. Aucun renvoi automatique des échecs n’est implémenté ; un échec conservé dans D1 doit être repris manuellement.
+
+Après configuration et redéploiement, faire deux tests avec le même email et deux niveaux différents. Vérifier qu’un seul contact existe, que le second niveau remplace le premier, que la liste est correcte et que les bilans Make arrivent. Pour consulter les erreurs :
+
+```sql
+SELECT p.date_test, p.email, p.niveau_lavi, b.status, b.http_status
+FROM test_participations p
+JOIN brevo_sync b ON b.participation_id = p.id
+ORDER BY p.date_test DESC
+LIMIT 20;
+```
 
 ### Localisation approximative des participations (DEV)
 
