@@ -73,6 +73,23 @@ export async function onRequestGet(context) {
   }
 }
 
+export async function publishQuestionSet(context, result, additionalStatements = () => []) {
+  const { env } = context;
+  const version = crypto.randomUUID();
+  const publishedAt = new Date().toISOString();
+  await env.QUIZ_DB.prepare('CREATE TABLE IF NOT EXISTS quiz_publications (id INTEGER PRIMARY KEY CHECK (id = 1), snapshot TEXT NOT NULL, version TEXT NOT NULL, published_at TEXT NOT NULL)').run();
+  await env.QUIZ_DB.prepare(QUESTION_AUDIO_TABLE).run();
+  const audioStatements = await prepareQuestionAudio(result.snapshot, env, version, publishedAt);
+  const publication = env.QUIZ_DB.prepare('INSERT INTO quiz_publications (id, snapshot, version, published_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot, version = excluded.version, published_at = excluded.published_at')
+    .bind(JSON.stringify(result.snapshot), version, publishedAt);
+  // La version ne devient visible que si tous les fichiers ont été copiés.
+  const statements = [...audioStatements, ...additionalStatements(version, publishedAt), publication];
+  if (statements.length > 1) await env.QUIZ_DB.batch(statements);
+  else await publication.run();
+  try { await env.QUIZ_DB.prepare('DELETE FROM quiz_question_audio WHERE version != ?').bind(version).run(); } catch { /* Une purge échouée ne retire pas la version publiée. */ }
+  return { ok: true, version, publishedAt, summary: result.summary };
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (!authorized(request, env)) return json({ ok: false, error: 'Accès administrateur requis.' }, 401);
@@ -82,18 +99,7 @@ export async function onRequestPost(context) {
   try {
     const result = await draft(context, true);
     if (result.errors.length) return json({ ok: false, errors: result.errors, summary: result.summary }, 422);
-    const version = crypto.randomUUID();
-    const publishedAt = new Date().toISOString();
-    await env.QUIZ_DB.prepare('CREATE TABLE IF NOT EXISTS quiz_publications (id INTEGER PRIMARY KEY CHECK (id = 1), snapshot TEXT NOT NULL, version TEXT NOT NULL, published_at TEXT NOT NULL)').run();
-    await env.QUIZ_DB.prepare(QUESTION_AUDIO_TABLE).run();
-    const audioStatements = await prepareQuestionAudio(result.snapshot, env, version, publishedAt);
-    const publication = env.QUIZ_DB.prepare('INSERT INTO quiz_publications (id, snapshot, version, published_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot, version = excluded.version, published_at = excluded.published_at')
-      .bind(JSON.stringify(result.snapshot), version, publishedAt);
-    // La version ne devient visible que si tous les fichiers ont été copiés.
-    if (audioStatements.length) await env.QUIZ_DB.batch([...audioStatements, publication]);
-    else await publication.run();
-    try { await env.QUIZ_DB.prepare('DELETE FROM quiz_question_audio WHERE version != ?').bind(version).run(); } catch { /* Une purge échouée ne retire pas la version publiée. */ }
-    return json({ ok: true, version, publishedAt, summary: result.summary });
+    return json(await publishQuestionSet(context, result));
   } catch (error) {
     console.error('Unable to publish question set', error);
     return json({ ok: false, error: 'Publication impossible. Vérifie la connexion Airtable et les fichiers audio, puis réessaie.' }, 502);
