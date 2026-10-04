@@ -1,6 +1,6 @@
 import { internalLocationHtml, locationFromRequest } from '../../lib/location.js';
 import { markNotification, saveParticipation } from '../../lib/participations.js';
-import { syncBrevoContact } from '../../lib/brevo.js';
+import { internationalPhone, syncBrevoContact } from '../../lib/brevo.js';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -27,7 +27,7 @@ export async function onRequestPost({ request, env }) {
     prenom: clean(input.prenom, 80),
     nom: clean(input.nom, 80),
     email: clean(input.email, 160).toLowerCase(),
-    telephone: clean(input.telephone, 40),
+    telephone: internationalPhone(input.telephone),
     niveau_lavi: Number(input.niveau_lavi),
     score: Number(input.score),
     points_possibles: Number(input.points_possibles),
@@ -40,6 +40,9 @@ export async function onRequestPost({ request, env }) {
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email);
   const validNumbers = [payload.niveau_lavi, payload.score, payload.points_possibles, payload.questions_evaluees]
     .every(Number.isFinite);
+  if (!payload.telephone) {
+    return json({ ok: false, error: 'Numéro de téléphone international requis, par exemple +33612345678.' }, 400);
+  }
   if (!payload.prenom || !payload.nom || !validEmail || !payload.telephone || !validNumbers) {
     return json({ ok: false, error: 'Données manquantes ou invalides' }, 400);
   }

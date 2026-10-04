@@ -9,7 +9,7 @@ const empty = { country: null, countryCode: null, region: null, city: null, post
 const cf = { country: 'FR', region: 'Île-de-France', city: 'Paris', postalCode: '75012', timezone: 'Europe/Paris' };
 const expected = { ...cf, country: 'France', countryCode: 'FR' };
 const participant = {
-  prenom: 'Test', nom: 'Localisation', email: 'TEST@example.com', telephone: '0000000000',
+  prenom: 'Test', nom: 'Localisation', email: 'TEST@example.com', telephone: '+33612345678',
   niveau_lavi: 4, score: 12, points_possibles: 16, questions_evaluees: 16, raison_fin: 'completed',
 };
 function submission(body = participant, metadata = cf) {
@@ -104,9 +104,23 @@ test('Make errors keep the participation and location in D1', async t => {
 test('invalid submissions are rejected before storage or transmission', async t => {
   t.mock.method(globalThis, 'fetch', async () => assert.fail('Invalid submission reached Make'));
   const env = { QUIZ_DB: { prepare() { assert.fail('Invalid submission reached D1'); } } };
-  for (const body of [null, [], { ...participant, email: 'invalid' }]) {
+  for (const body of [null, [], { ...participant, email: 'invalid' }, ...['0612345678', '', '+0000000', 'invalid'].map(telephone => ({ ...participant, telephone }))]) {
     assert.equal((await onRequestPost({ request: submission(body), env })).status, 400);
   }
+});
+
+test('international phones are normalized before storage and all transmissions', async t => {
+  const db = database();
+  t.after(() => db.sqlite.close());
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const body = JSON.parse(options.body);
+    if (url === 'https://make.test/webhook') assert.equal(body.telephone, '+972501234567');
+    else for (const key of ['SMS', 'LANDLINE_NUMBER', 'WHATSAPP']) assert.equal(body.attributes[key], '+972501234567');
+    return new Response(null, { status: 204 });
+  });
+  const env = { QUIZ_DB: db.binding, MAKE_WEBHOOK_URL: 'https://make.test/webhook', BREVO_API_KEY: 'test-key' };
+  assert.equal((await onRequestPost({ request: submission({ ...participant, telephone: '00972 (50) 123-4567' }), env })).status, 200);
+  assert.equal(db.sqlite.prepare('SELECT telephone FROM test_participations').get().telephone, '+972501234567');
 });
 
 test('Brevo creates then updates the contact by normalized email at the end of the test', async t => {

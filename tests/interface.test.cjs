@@ -53,7 +53,15 @@ assert.equal($('intake-history').children[2].children[1].textContent,'Enchanté 
 assert.equal($('intake-form').className,'composer chat-input-only');
 intake('bad-email'); assert.equal(intakeIndex,1);
 intake('alice@example.fr'); intake(' '); assert.equal(intakeIndex,2);
-intake('0600000000'); assert.equal(intakeIndex,3);
+assert.equal($('intake-answer').inputMode,'tel');
+assert.equal($('intake-answer').placeholder,'+33 6 12 34 56 78');
+for (const phone of ['0600000000', 'abc', '+0000000', '+33', '+336123456789012345']) {
+  intake(phone); assert.equal(intakeIndex,2);
+  assert.equal($('intake-error').hidden,false);
+  assert.ok($('intake-error').textContent.includes('indicatif'));
+}
+intake('00 33 6 12 34 56 78'); assert.equal(intakeIndex,3);
+assert.equal(userProfile.telephone,'+33612345678');
 assert.equal(userProfile.prenom,'Alice');
 assert.equal(userProfile.nom,'Martin');
 assert.equal($('intake-confirmation').textContent,'Parfait, merci Alice. On peut commencer le test 😊');

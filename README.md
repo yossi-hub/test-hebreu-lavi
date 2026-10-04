@@ -34,7 +34,7 @@ Les questions en hébreu sont affichées de droite à gauche. Le point d’inter
 
 ## Parcours et score
 
-- Le profil demande le prénom et le nom dans une même première question, puis l’email et le téléphone. Tous sont obligatoires ; email au format valide et téléphone non vide.
+- Le profil demande le prénom et le nom dans une même première question, puis l’email et le téléphone. Tous sont obligatoires ; email au format valide et téléphone au format international obligatoire (par exemple `+33612345678` ou `+972501234567`). Les espaces et séparateurs sont retirés ; le préfixe `00` est converti en `+`. La saisie et le backend refusent les numéros sans indicatif.
 - Les quatre autoévaluations sont toujours posées. Le nombre de « Oui » consécutifs avant le premier « Non » choisit le premier mini-test : 0 → niveau 1, 1 → niveau 2, 2 → niveau 3, 3 → niveau 5 et 4 → niveau 6. Une combinaison contradictoire est donc interprétée prudemment à partir du premier « Non ».
 - Les réponses aux quatre autoévaluations passent immédiatement à la suite, sans message de confirmation du professeur.
 - Chaque niveau testé commence par trois questions prédéfinies. Un score de 3/3 valide le niveau, 0/3 ou 1/3 l’invalide, et 2/3 déclenche une quatrième question de départage. Le niveau est validé à 3/4 et invalidé à 2/4.
@@ -128,7 +128,7 @@ Par exemple, pour utiliser un attribut `NIVEAU` à la place de `NIVEAU_LAVI` :
 {"niveau_lavi":"NIVEAU"}
 ```
 
-Les champs non précisés gardent leur attribut par défaut ; `null` permet de ne pas envoyer un champ. Les noms d’attributs doivent être en majuscules et distincts. Le téléphone est normalisé (espaces, tirets, points et parenthèses retirés, préfixe `00` converti en `+`) et copié dans les trois champs existants. Les numéros sans indicatif international, par exemple `0612345678`, sont omis de Brevo : aucun pays n’est déduit de la localisation. Le contact et le niveau sont tout de même synchronisés et les éventuels anciens numéros restent inchangés ; le numéro saisi est toujours conservé dans D1 et transmis à Make. `{"telephone":null}` désactive les trois champs téléphone. La synchronisation ne modifie pas les désinscriptions et ne force aucune fusion de contacts. Un numéro déjà associé à un autre contact peut provoquer un refus Brevo, conservé dans `brevo_sync`.
+Les champs non précisés gardent leur attribut par défaut ; `null` permet de ne pas envoyer un champ. Les noms d’attributs doivent être en majuscules et distincts. Le téléphone est normalisé (espaces, tirets, points et parenthèses retirés, préfixe `00` converti en `+`) et copié dans les trois champs existants. Les numéros sans indicatif international, par exemple `0612345678`, sont refusés dans la saisie et par `/api/results` avant tout enregistrement ou transmission : aucun pays n’est déduit de la localisation. Le numéro normalisé est conservé dans D1 et transmis à Make et Brevo. `{"telephone":null}` désactive les trois champs téléphone. La synchronisation ne modifie pas les désinscriptions et ne force aucune fusion de contacts. Un numéro déjà associé à un autre contact peut provoquer un refus Brevo, conservé dans `brevo_sync`.
 
 L’appel Brevo et l’envoi Make s’exécutent indépendamment, après l’enregistrement de la participation. Une erreur Brevo ne bloque pas le bilan Make ; une erreur Make n’empêche pas la synchronisation Brevo. Le backend attend les deux appels avant de répondre, avec un délai maximum de huit secondes pour l’appel HTTP Brevo. Le succès affiché à l’utilisateur concerne l’envoi du bilan via Make.
 
