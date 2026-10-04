@@ -16,9 +16,19 @@
       <p>Prépare tes questions dans <a href="https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA" target="_blank" rel="noopener noreferrer">la table Airtable</a>, puis publie-les ici.</p>
       <ol class="admin-guide">
         <li>Ajoute ou modifie une question avec <strong>Phase = Audio DEV</strong> et son texte dans <strong>Texte</strong>.</li>
-        <li>Dépose ton enregistrement dans <strong>Fichier audio</strong> et décris la réponse attendue dans <strong>Prompt d’évaluation</strong>. Les exemples sont facultatifs.</li>
+        <li>Pour une question écrite, laisse <strong>Fichier audio</strong> vide. Pour une question à écouter, dépose ton enregistrement. Renseigne <strong>Prompt d’évaluation</strong> pour chaque réponse vocale.</li>
         <li>Passe <strong>État éditorial</strong> à <strong>Validée</strong>, puis clique sur <strong>Actualiser depuis Airtable</strong>. Les brouillons audio restent dans Airtable.</li>
       </ol>
+      <details class="admin-guide">
+        <summary>Ajouter un texte avec trois réponses vocales</summary>
+        <ol>
+          <li>Utilise les trois lignes <strong>dev-mon-texte-01-q1</strong>, <strong>q2</strong> et <strong>q3</strong>, déjà préparées en brouillon dans Airtable.</li>
+          <li>Colle le texte à lire dans <strong>Texte support</strong> sur la première ligne. Écris une question par ligne dans <strong>Texte</strong>.</li>
+          <li>Garde <strong>Groupe support = mon-texte-01</strong> sur les trois lignes et <strong>Position dans le bloc = 1, 2, 3</strong>.</li>
+          <li>Choisis <strong>Type = audio_response</strong> et <strong>Phase = Audio DEV</strong>. Renseigne un <strong>Prompt d’évaluation</strong> par question ; laisse le fichier audio vide.</li>
+          <li>Passe les trois lignes à <strong>Validée</strong>, puis actualise ici. Dans l’application, choisis ton groupe dans <strong>Exercice à tester</strong>.</li>
+        </ol>
+      </details>
       <div class="admin-actions">
         <button id="publish-draft" class="primary" type="button" disabled>Actualiser depuis Airtable</button>
         <a id="open-published" class="primary" href="/" hidden>Ouvrir l’application mise à jour</a>

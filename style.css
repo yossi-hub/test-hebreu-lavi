@@ -23,9 +23,11 @@ h2 { font-size: 16px; line-height: 1.45; margin: 0 0 6px; }
 .welcome-action { display: flex; justify-content: flex-end; margin-top: 30px; }
 #audio-dev-entry { flex-direction: column; align-items: flex-end; gap: 10px; }
 #audio-catalog-status { margin: 0; text-align: right; }
+#audio-exercise-picker { display: grid; gap: 6px; width: min(100%, 360px); }
+#audio-exercise { font: inherit; padding: 10px 14px; color: var(--ink); background: white; border: 1px solid #aec6b8; border-radius: 16px; }
 button, input { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible { outline: 3px solid #b27b17; outline-offset: 4px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #b27b17; outline-offset: 4px; }
 .primary { border: 0; border-radius: 24px; background: var(--green); color: white; padding: 13px 22px; font-weight: 650; display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 48px; }
 .primary:hover { background: #064a42; }
 .progress-label { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: #475e55; }

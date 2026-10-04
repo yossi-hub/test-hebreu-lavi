@@ -164,4 +164,36 @@ assert.equal(audioDemoMode, false);
 assert.equal($('welcome').hidden, false);
 assert.equal(engine.state.mode, 'orientation');
 `, context);
+vm.runInContext(`
+// Deux textes : changement de bloc, compteur et sélection d’un seul exercice.
+devAudioQuestions = ['texte-a', 'texte-b'].flatMap(group => [1, 2, 3].map(position => ({
+  id: group + '-' + position, type: 'audio_response', texte: 'Question ' + position,
+  supportGroup: group, supportText: 'Texte commun ' + group,
+  points: 1, choix: [], bonneReponse: null, obligatoire: false,
+})));
+populateAudioExercises();
+assert.equal($('audio-exercise-picker').hidden, false);
+$('audio-exercise').value = '';
+$('audio-demo-start').events.click();
+for (let index = 0; index < 6; index++) {
+  assert.equal(engine.current().id, (index < 3 ? 'texte-a' : 'texte-b') + '-' + (index % 3 + 1));
+  assert.equal($('passage-message').hidden, index % 3 !== 0);
+  assert.equal($('support-progress').textContent, 'Texte · question ' + (index % 3 + 1) + ' sur 3');
+  assert.equal($('audio-answer').hidden, false);
+  assert.equal($('written-form').hidden, true);
+  assert.match($('instruction').textContent, /note vocale/);
+  submitAnswer({ status: 'correct', confidence: 0.95, duration: 2 });
+}
+assert.equal(engine.state.finished, true);
+assert.equal($('composer').hidden, true);
+assert.equal($('results').hidden, true);
+$('audio-demo-return').events.click();
+$('audio-exercise').value = 'texte-b';
+$('audio-demo-start').events.click();
+assert.equal(audioExperimentQuestions.length, 3);
+assert.equal(engine.current().id, 'texte-b-1');
+assert.equal($('progress-text').textContent, 'Question audio 1 sur 3');
+assert.equal($('question-passage').children[0].textContent, 'Texte commun texte-b');
+$('audio-demo-return').events.click();
+`, context);
 console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');

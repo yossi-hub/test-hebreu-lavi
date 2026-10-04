@@ -313,7 +313,18 @@ function createLegacyQuizEngine(questionList, configuration) {
     if (state.blockIndex >= blocks.length) finish('completed');
   }
   reset();
-  return { reset, current, submit, next, get state() { return state; }, get block() { return blocks[state.blockIndex]; } };
+  return { reset, current, submit, next, get state() { return state; }, get block() { return blocks[state.blockIndex]; },
+    get support() {
+      const block = blocks[state.blockIndex];
+      const support = questionSupport(current(), block);
+      if (!support || !block) return null;
+      const keyAt = index => questionSupport(byId.get(block.questions[index]), block)?.key;
+      let start = state.itemIndex, end = start;
+      while (start > 0 && keyAt(start - 1) === support.key) start -= 1;
+      while (end + 1 < block.questions.length && keyAt(end + 1) === support.key) end += 1;
+      return { type: support.type, position: state.itemIndex - start + 1, total: end - start + 1 };
+    },
+  };
 }
 
 function createQuizEngine(questionList, configuration) {

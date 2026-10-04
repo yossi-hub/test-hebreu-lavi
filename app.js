@@ -441,7 +441,7 @@ function renderQuestion(scrollToTop = false) {
   $('question-title').textContent = formattedQuestion.text;
   $('question-title').dir = formattedQuestion.hebrew ? 'rtl' : 'ltr';
   $('question-title').lang = formattedQuestion.hebrew ? 'he' : 'fr';
-  $('instruction').textContent = q.instruction || (q.type === 'text' ? 'Écris ta réponse.' : '');
+  $('instruction').textContent = q.instruction || (q.type === 'text' ? 'Écris ta réponse.' : q.type === 'audio_response' ? 'Réponds en hébreu avec une note vocale.' : '');
   $('instruction').hidden = !$('instruction').textContent;
   const scoredQuestions = questions.filter(item => item.bonneReponse != null || item.type === 'audio_response' && item.points > 0);
   if (q.points > 0) {
@@ -590,7 +590,7 @@ function submitAnswer(value) {
   $('feedback').className = `bubble teacher feedback${result.scored && !result.correct ? ' incorrect' : ''}`;
   $('feedback').hidden = false;
   if (typeof audioDemoMode !== 'undefined' && audioDemoMode) {
-    if (engine.state.itemIndex + 1 < audioExperimentQuestions.length) {
+    if (q.id !== audioExperimentQuestions.at(-1)?.id) {
       archiveExchange(); engine.next(); renderQuestion();
     } else {
       stopAudio(); engine.next(); $('composer').hidden = true;

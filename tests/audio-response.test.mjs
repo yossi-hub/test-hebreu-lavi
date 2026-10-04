@@ -146,3 +146,18 @@ test('engine leaves uncertainty unsubmitted, scores reliable verdicts, and micro
   engine.reset(); engine.submit({ ...verdict, status: 'incorrect' }); assert.equal(engine.state.score, 0); assert.equal(engine.state.attempted, 1);
   assert.match(microphoneError({ name: 'NotAllowedError' }), /Autorise/);
 });
+
+
+test('Written reading question: evaluation receives the published passage as trusted context', async () => {
+  const question = { ...audioDemo, media: undefined, texte: 'לאן דנה נוסעת?', supportText: 'דנה נוסעת לירושלים ביום ראשון.', evaluationCriteria: 'Elle se rend à Jérusalem.' };
+  let calls = 0;
+  await withFetch(async (url, options) => {
+    if (++calls === 1) return Response.json({ text: 'לירושלים', logprobs: [{ logprob: -0.01 }] });
+    const body = JSON.parse(options.body);
+    assert.ok(body.instructions.includes(question.supportText));
+    assert.ok(body.instructions.includes(question.evaluationCriteria));
+    assert.ok(body.instructions.includes(question.texte));
+    return Response.json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(verdict) }] }] });
+  }, async () => assert.equal((await analyzeAudio(env, question, audio(wave()))).status, 'correct'));
+  assert.equal(calls, 2);
+});

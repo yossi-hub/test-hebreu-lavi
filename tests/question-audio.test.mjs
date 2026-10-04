@@ -192,3 +192,37 @@ test('La page indique la configuration manquante sans exposer de secrets', async
   assert.equal(JSON.stringify(configured).includes('private'), false);
   db.close();
 });
+
+
+test('Texte Airtable : question écrite sans fichier, texte partagé et trois questions groupées dans leur ordre', () => {
+  const rows = [3, 1, 2].map((position, index) => ({ id: `reading-${position}`, fields: {
+    [FIELDS.phase]: 'Audio DEV', [FIELDS.editorialState]: 'Validée',
+    [FIELDS.text]: `Question ${position}`, [FIELDS.type]: 'audio_response',
+    [FIELDS.supportGroup]: 'voyage', [FIELDS.blockPosition]: position,
+    [FIELDS.globalPosition]: index * 2,
+    ...(position === 1 ? { [FIELDS.supportText]: 'דנה נוסעת לירושלים ביום ראשון.' } : {}),
+    [FIELDS.audioPrompt]: 'Comprendre le texte et répondre à la question en hébreu.',
+  } }));
+  const standalone = structuredClone(newQuestion); standalone.id = 'standalone'; standalone.fields[FIELDS.globalPosition] = 1;
+  const compile = input => compileQuestionSet(base, input, { audioEnabled: true, requireReady: true });
+  const result = compile([...rows, standalone]);
+  assert.deepEqual(result.errors.filter(error => /reading-|Groupe voyage/.test(error)), []);
+  assert.deepEqual(result.snapshot.devAudioQuestions.map(q => q.id), ['reading-1', 'reading-2', 'reading-3', 'standalone']);
+  for (const q of result.snapshot.devAudioQuestions.slice(0, 3)) {
+    assert.equal(q.supportText, 'דנה נוסעת לירושלים ביום ראשון.');
+    assert.equal(q.media, undefined);
+    assert.equal(q.evaluationCriteria, rows[0].fields[FIELDS.audioPrompt]);
+  }
+  assert.match(compile(rows.slice(1)).errors.join(' '), /au moins 3 questions validées/);
+  const duplicate = structuredClone(rows); duplicate[0].fields[FIELDS.blockPosition] = 1;
+  assert.match(compile(duplicate).errors.join(' '), /sans doublon/);
+  const inconsistent = structuredClone(rows); inconsistent[0].fields[FIELDS.supportText] = 'Un autre texte';
+  assert.match(compile(inconsistent).errors.join(' '), /un seul texte commun/);
+  const noPassage = structuredClone(rows); for (const row of noPassage) delete row.fields[FIELDS.supportText];
+  assert.match(compile(noPassage).errors.join(' '), /un seul texte commun/);
+  const tooLong = structuredClone(rows); tooLong[1].fields[FIELDS.supportText] = 'a'.repeat(12001);
+  assert.match(compile(tooLong).errors.join(' '), /12000 caractères/);
+  const partial = structuredClone(rows); partial[0].fields[FIELDS.editorialState] = 'Brouillon';
+  assert.match(compile(partial).errors.join(' '), /au moins 3 questions validées/);
+  assert.equal(compileQuestionSet(base, rows).snapshot.devAudioQuestions, undefined);
+});

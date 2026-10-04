@@ -252,7 +252,7 @@ La table existante **Questions test hébreu** contient désormais ces champs :
 | Champ | Usage |
 | --- | --- |
 | Texte | La question à afficher, en hébreu ou en français. |
-| Fichier audio (`fldUt7uohuKSxSPzc`) | Un fichier WAV, MP3 ou M4A déposé directement dans la cellule, au maximum 5 Mo. |
+| Fichier audio (`fldUt7uohuKSxSPzc`) | Facultatif pour une question écrite. Pour une question à écouter : un fichier WAV, MP3 ou M4A, au maximum 5 Mo. |
 | Prompt d’évaluation (`fld1YQmkzzvPO0I6R`) | Le critère pédagogique en texte libre, au maximum 4000 caractères. |
 | Exemples de réponses acceptables (`fldHaqqleHf5aPkII`) | Facultatif : un exemple par ligne, au maximum 20. |
 | Phase | Choisir `Audio DEV` pour l’essai vocal. |
@@ -268,6 +268,18 @@ Cliquer sur le lien **Mettre à jour DEV** dans Airtable, puis sur **Actualiser 
 Les [liens des pièces jointes Airtable expirent](https://support.airtable.com/articles/9671148410-airtable-attachment-url-behavior). À la publication, les fichiers des **questions** sont téléchargés, vérifiés et copiés en fragments dans `quiz_question_audio` dans D1 Preview, avec un maximum de 20 Mo par publication. La copie et la nouvelle version sont enregistrées dans une transaction ; une panne de téléchargement conserve la version précédente. `/api/question-audio` sert les fichiers de la version active et les plages d’octets nécessaires à Safari. Les fichiers des anciennes versions sont purgés après une publication réussie. L’aperçu utilise les liens Airtable fraîchement obtenus : revérifier le brouillon si la page reste ouverte plusieurs heures. Les réponses vocales des élèves ne sont jamais stockées dans cette table.
 
 Pour remplacer une question dans le **test de niveau adaptatif**, conserver son **ID**, son **Bloc ID**, sa **Position**, son **Niveau** et ses **Points** ; choisir `Type = audio_response`, déposer le fichier et renseigner le prompt direct. Vider la bonne réponse et les choix, désactiver Oui/Non et choix multiples. La phase reste `Test`. L’ajout de nouvelles places dans les mini-tests adaptatifs demande encore une modification de leurs règles ; la phase `Audio DEV` sert à expérimenter librement avant cette intégration. L’ancienne configuration audio dans **Données importées (JSON)** reste reconnue pour les premiers essais.
+
+### Texte commun, questions écrites et réponses vocales — DEV
+
+La table Questions test hébreu contient **Groupe support** (`fld43YCo7pAFy0KBR`) et **Texte support** (`flduLdi5wY6UFgPSe`). Les trois lignes `dev-mon-texte-01-q1`, `q2`, `q3` sont un modèle en **Brouillon**, non publié.
+
+1. Coller le texte dans **Texte support** sur une seule ligne du groupe (maximum 12000 caractères).
+2. Écrire une question par ligne dans **Texte** ; même **Groupe support** sur toutes les lignes, **Position dans le bloc** = 1, 2, 3, puis les suivantes si besoin.
+3. Choisir **Type = audio_response**, **Phase = Audio DEV**, remplir un **Prompt d’évaluation** par question. Le **Fichier audio** est facultatif : il peut rester vide pour une question écrite. Laisser les choix et la bonne réponse JSON vides.
+4. Passer au moins trois questions à **Validée**, puis **Actualiser depuis Airtable**. L’actualisation refuse les groupes incomplets, les positions en double et les textes contradictoires ; la publication précédente reste active.
+5. Sur l’accueil DEV, sélectionner le groupe dans **Exercice à tester**, puis **Tester les questions audio (DEV)**. Le texte apparaît une seule fois, les questions restent consécutives et le compteur du texte indique 1/3, 2/3, 3/3. Le texte publié est aussi fourni à l’évaluateur avec les critères serveur. Cet essai est séparé du positionnement et n’envoie aucun bilan.
+
+**Ordre global** ordonne les exercices ; les positions dans le bloc ordonnent les questions du groupe, même si leurs ordres globaux sont intercalés avec d’autres exercices. Les brouillons restent exclus. L’intégration de nouvelles questions notées dans le parcours adaptatif demande toujours une mise à jour des règles de sélection.
 
 ### Activation sur le site DEV et essai iPhone
 

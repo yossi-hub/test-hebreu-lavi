@@ -59,7 +59,7 @@ async function loadAudioCapability() {
     const data = response.ok ? await response.json() : null;
     await questionSetReady;
     if (data?.enabled === true && data.demo?.type === 'audio_response') {
-      audioCapability = data; $('audio-dev-entry').hidden = false;
+      audioCapability = data; populateAudioExercises(); $('audio-dev-entry').hidden = false;
       $('audio-catalog-status').textContent = devAudioQuestions.length
         ? `${devAudioQuestions.length} question${devAudioQuestions.length > 1 ? 's' : ''} audio ${new URLSearchParams(globalThis.location?.search || '').get('preview') === '1' ? 'en aperçu Airtable' : 'publiée' + (devAudioQuestions.length > 1 ? 's' : '')}.`
         : 'Démo audio · Ajoute tes questions dans Airtable, puis mets à jour DEV.';
@@ -67,12 +67,39 @@ async function loadAudioCapability() {
   } catch { /* Le test existant continue sans la fonctionnalité DEV. */ }
 }
 
+function audioExperimentConfiguration(questionList) {
+  const blocs = [];
+  for (const q of questionList) {
+    const group = q.supportGroup || '';
+    let block = blocs.at(-1);
+    if (!group || block?.supportGroup !== group) {
+      block = { id: `audio-exercise-${blocs.length}`, supportGroup: group, niveau: q.niveau || 1, questions: [] };
+      if (q.supportText) block.passage = q.supportText;
+      blocs.push(block);
+    }
+    block.questions.push(q.id);
+  }
+  return { variables: {}, regles: {}, blocs };
+}
+
+function populateAudioExercises() {
+  const select = $('audio-exercise');
+  select.replaceChildren();
+  const all = document.createElement('option'); all.value = ''; all.textContent = 'Toutes les questions'; select.append(all);
+  for (const group of new Set(devAudioQuestions.map(q => q.supportGroup).filter(Boolean))) {
+    const option = document.createElement('option'); option.value = group; option.textContent = group; select.append(option);
+  }
+  $('audio-exercise-picker').hidden = select.children.length < 2;
+}
+
 function initializeAudioExperiment() {
   $('audio-demo-start').addEventListener('click', () => {
     if (!audioCapability?.enabled) return;
     stopAudio(); audioDemoMode = true;
-    audioExperimentQuestions = devAudioQuestions.length ? devAudioQuestions : [audioCapability.demo];
-    engine = createQuizEngine(audioExperimentQuestions, { variables: {}, regles: {}, blocs: [{ id: 'audio-demo', niveau: 1, questions: audioExperimentQuestions.map(q => q.id) }] });
+    const selectedGroup = $('audio-exercise').value;
+    audioExperimentQuestions = devAudioQuestions.length ? devAudioQuestions.filter(q => !selectedGroup || q.supportGroup === selectedGroup) : [audioCapability.demo];
+    if (!audioExperimentQuestions.length) return;
+    engine = createQuizEngine(audioExperimentQuestions, audioExperimentConfiguration(audioExperimentQuestions));
     $('history').replaceChildren(); previousPassage = ''; previousMediaKey = '';
     $('welcome').hidden = true; $('results').hidden = true; $('quiz').hidden = false; $('active-question').hidden = false;
     $('audio-demo-return').hidden = false;
