@@ -142,4 +142,19 @@ assert.ok(row.version);
 const published = await onRequestGet({ request: request('https://test.local/api/question-set'), env });
 assert.equal((await published.json()).snapshot.questions.length, 72);
 globalThis.fetch = originalFetch;
+const audioRecords = structuredClone(records);
+const audioRow = audioRecords.find(record => record.fields[FIELDS.points] > 0);
+Object.assign(audioRow.fields, {
+  [FIELDS.type]: 'audio_response', [FIELDS.choices]: '[]', [FIELDS.answer]: 'null',
+  [FIELDS.mediaType]: 'audio', [FIELDS.mediaUrl]: '/audio/question-demo.wav',
+  [FIELDS.multiple]: false, [FIELDS.yesNo]: false, [FIELDS.conversational]: false,
+  [FIELDS.importedData]: JSON.stringify({ evaluationCriteria: 'Une activité hier soir en hébreu.', acceptedExamples: ['ראיתי סרט'] }),
+});
+assert.match(compileQuestionSet(base, audioRecords).errors.join(' '), /réservées à DEV/);
+const audioSet = compileQuestionSet(base, audioRecords, { audioEnabled: true });
+assert.deepEqual(audioSet.errors, []);
+assert.equal(audioSet.summary.scoredQuestions, 68);
+assert.equal(audioSet.snapshot.questions.find(q => q.id === audioRow.fields[FIELDS.id]).evaluationCriteria, 'Une activité hier soir en hébreu.');
+audioRow.fields[FIELDS.importedData] = '{"evaluationCriteria":"", "acceptedExamples":"wrong"}';
+assert.match(compileQuestionSet(base, audioRecords, { audioEnabled: true }).errors.join(' '), /critères audio.*exemples audio/);
 console.log('OK : import Airtable, validation du parcours, aperçu protégé et publication stable.');

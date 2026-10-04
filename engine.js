@@ -1,4 +1,11 @@
 // Moteur sans dépendance, indépendant de l’affichage.
+function audioVerdict(question, answer) {
+  if (question.type !== 'audio_response' || answer == null) return;
+  if (!['correct', 'incorrect'].includes(answer?.status) || typeof answer.confidence !== 'number'
+    || !Number.isFinite(answer.confidence) || answer.confidence < 0.75 || answer.confidence > 1) {
+    throw new Error('La réponse audio doit être réanalysée, sans perte de point.');
+  }
+}
 function createAdaptiveQuizEngine(questionList, configuration) {
   const byId = new Map(questionList.map(question => [question.id, question]));
   const adaptive = configuration.adaptive;
@@ -67,6 +74,7 @@ function createAdaptiveQuizEngine(questionList, configuration) {
   function submit(answer) {
     if (state.finished || state.answered) return null;
     const item = current();
+    audioVerdict(item, answer);
     const empty = answer == null || (typeof answer === 'string' && !answer.trim()) || (Array.isArray(answer) && !answer.length);
     if (empty && item.obligatoire && state.mode !== 'test') throw new Error('Réponds à cette question.');
     if (!empty && item.type === 'qcm') {
@@ -76,8 +84,8 @@ function createAdaptiveQuizEngine(questionList, configuration) {
       }
     }
     state.answers[item.id] = empty ? null : answer;
-    const scored = item.bonneReponse != null;
-    const correct = scored && !empty && (item.type === 'text'
+    const scored = item.bonneReponse != null || item.type === 'audio_response' && item.points > 0;
+    const correct = scored && !empty && (item.type === 'audio_response' ? answer.status === 'correct' : item.type === 'text'
       ? normalize(answer) === normalize(item.bonneReponse)
       : item.multiple ? answer.length === 1 && answer[0] === item.bonneReponse : answer === item.bonneReponse);
     if (scored) {
@@ -188,6 +196,7 @@ function createLegacyQuizEngine(questionList, configuration) {
   function submit(answer) {
     if (state.finished || state.answered) return null;
     const question = current();
+    audioVerdict(question, answer);
     const empty = answer == null || (typeof answer === 'string' && !answer.trim()) || (Array.isArray(answer) && !answer.length);
     if (empty && question.obligatoire) throw new Error('Réponds à cette question.');
     if (!empty && question.type === 'qcm') {
@@ -195,8 +204,8 @@ function createLegacyQuizEngine(questionList, configuration) {
       if (!Array.isArray(values) || !values.every(v => question.choix.some(c => c.valeur === v))) throw new Error('Choix non valide.');
     }
     state.answers[question.id] = empty ? null : answer;
-    const scored = question.bonneReponse != null;
-    const correct = scored && !empty && (question.type === 'text'
+    const scored = question.bonneReponse != null || question.type === 'audio_response' && question.points > 0;
+    const correct = scored && !empty && (question.type === 'audio_response' ? answer.status === 'correct' : question.type === 'text'
       ? normalize(answer) === normalize(question.bonneReponse) : question.multiple ? answer.length === 1 && answer[0] === question.bonneReponse : answer === question.bonneReponse);
     if (scored) {
       state.possible += question.points;

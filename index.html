@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="style.css">
   <script src="questions.js" defer></script>
   <script src="engine.js" defer></script>
+  <script src="audio-recorder.js" defer></script>
+  <script src="audio-experiment.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -23,6 +25,10 @@
         <p id="welcome-description"></p>
       </div>
       <p id="question-set-status" class="question-set-status" role="status" hidden></p>
+      <div id="audio-dev-entry" class="welcome-action" hidden>
+        <p id="audio-catalog-status" class="help"></p>
+        <button id="audio-demo-start" class="primary" type="button">🎙️ Tester les questions audio (DEV)</button>
+      </div>
       <div id="intake-history" class="history" aria-label="Prise de connaissance"></div>
       <div id="intake-prompt" class="bubble teacher">
         <span class="sender">Professeur Lavi</span>
@@ -57,6 +63,7 @@
       </div>
       <div id="composer" class="composer">
       <div id="choices" class="choices"></div>
+      <div id="audio-answer" class="audio-answer" hidden></div>
       <button id="confirm-choices" class="primary" hidden>Valider mes choix</button>
       <p id="answer-error" class="help" role="alert" hidden></p>
       <button id="skip" class="primary" type="button" hidden>Passer cette question</button>
@@ -71,6 +78,8 @@
       <div id="student-message" class="bubble student" hidden><p id="student-answer" dir="auto"></p></div>
       <div id="feedback" class="bubble teacher feedback" role="status" aria-live="polite" hidden></div>
       <button id="next" class="primary next" hidden>Question suivante <span aria-hidden="true">→</span></button>
+      <details id="audio-debug" class="audio-debug" hidden><summary>Debug audio · Administration DEV</summary><pre id="audio-debug-content"></pre></details>
+      <button id="audio-demo-return" class="primary" type="button" hidden>Retour au test de niveau</button>
       </div>
     </section>
 

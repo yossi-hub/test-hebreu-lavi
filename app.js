@@ -127,6 +127,10 @@ function scrollTestToTop() {
 }
 function startTest() {
   if (intakeIndex < intakeSteps.length) return;
+  if (typeof stopAudio === 'function') {
+    stopAudio(); audioDemoMode = false; engine = createQuizEngine(questions, parcours);
+    $('audio-demo-return').hidden = true; $('audio-debug').hidden = true;
+  }
   engine.reset();
   orientationSelections = new Map();
   testIntroShown = false;
@@ -161,6 +165,7 @@ function showTestIntroduction() {
 }
 
 function renderOrientation() {
+  if (typeof stopAudio === 'function') stopAudio();
   const orientationQuestions = parcours.adaptive.selfAssessmentIds.map(id => questions.find(question => question.id === id));
   $('student-message').hidden = true;
   $('feedback').hidden = true;
@@ -173,6 +178,7 @@ function renderOrientation() {
   $('question-context').replaceChildren();
   $('composer').hidden = false;
   $('composer').classList.toggle('text-composer', false);
+  $('composer').classList.toggle('voice-composer', false);
   $('confirm-choices').hidden = true;
   $('skip').hidden = true;
   $('written-form').hidden = true;
@@ -238,6 +244,7 @@ function renderOrientation() {
 }
 function renderMedia(question) {
   const context = $('question-context');
+  context.querySelectorAll('audio').forEach(audio => audio.pause());
   const passageMessage = $('passage-message');
   const passageContainer = $('question-passage');
   context.replaceChildren();
@@ -258,6 +265,15 @@ function renderMedia(question) {
   const repeatedVideo = question.media?.type === 'video' && mediaKey === previousMediaKey;
   previousMediaKey = mediaKey;
   if (!question.media || repeatedVideo) return;
+  if (question.media.type === 'audio') {
+    if (typeof audioCapability === 'undefined' || !audioCapability?.enabled) return;
+    const playback = createVoicePlayer(question.media.url, 'Écouter ou réécouter la question');
+    const player = playback.audio; playback.element.className += ' question-audio';
+    const error = document.createElement('p'); error.className = 'help'; error.hidden = true;
+    error.textContent = 'Le fichier de la question est indisponible. Réessaie après son remplacement.';
+    player.addEventListener('error', () => { error.hidden = false; });
+    context.append(playback.element, error); return;
+  }
   const url = new URL(question.media.url);
   if (url.protocol !== 'https:') return;
   if (question.media.type === 'image') {
@@ -397,8 +413,14 @@ function parseTypedAnswer(question, rawAnswer) {
 }
 
 function renderQuestion(scrollToTop = false) {
+  if (typeof stopAudio === 'function') stopAudio();
   const q = engine.current();
-  if (!q) { showResults(); return; }
+  if (!q) {
+    if (typeof audioDemoMode !== 'undefined' && audioDemoMode) {
+      $('composer').hidden = true; $('question-title').textContent = 'Essai audio terminé'; return;
+    }
+    showResults(); return;
+  }
   if (engine.state.mode === 'orientation') {
     renderOrientation();
     return;
@@ -410,6 +432,7 @@ function renderQuestion(scrollToTop = false) {
   $('answer-error').hidden = true;
   $('composer').hidden = false;
   $('composer').classList.toggle('text-composer', q.type === 'text');
+  $('composer').classList.toggle('voice-composer', q.type === 'audio_response');
   $('confirm-choices').hidden = !q.multiple || q.reponseConversationnelle;
   $('skip').hidden = q.obligatoire && engine.state.mode !== 'test';
   $('written-form').hidden = q.type !== 'text';
@@ -419,7 +442,7 @@ function renderQuestion(scrollToTop = false) {
   $('question-title').lang = formattedQuestion.hebrew ? 'he' : 'fr';
   $('instruction').textContent = q.instruction || (q.type === 'text' ? 'Écris ta réponse.' : '');
   $('instruction').hidden = !$('instruction').textContent;
-  const scoredQuestions = questions.filter(item => item.bonneReponse != null);
+  const scoredQuestions = questions.filter(item => item.bonneReponse != null || item.type === 'audio_response' && item.points > 0);
   if (q.points > 0) {
     const adaptivePosition = engine.state.levelQuestionNumber;
     const levelQuestions = scoredQuestions.filter(item => item.niveau === q.niveau);
@@ -429,12 +452,29 @@ function renderQuestion(scrollToTop = false) {
     $('progress').max = adaptivePosition === 4 ? 4 : adaptivePosition ? 3 : levelQuestions.length;
     $('progress').value = adaptivePosition || levelQuestions.indexOf(q) + 1;
     $('question-level').textContent = `Niveau ${q.niveau} sur 8`;
+    if (typeof audioDemoMode !== 'undefined' && audioDemoMode) {
+      const number = audioExperimentQuestions.findIndex(item => item.id === q.id) + 1;
+      $('progress-text').textContent = `Question audio ${number} sur ${audioExperimentQuestions.length}`;
+      $('progress').max = audioExperimentQuestions.length; $('progress').value = number;
+      $('question-level').textContent = 'DEV';
+    }
   }
   $('progress-label').hidden = !q.points;
   $('progress').hidden = !q.points;
   renderMedia(q);
   $('choices').replaceChildren();
   $('choices').className = 'choices';
+  if (q.type === 'audio_response') {
+    $('confirm-choices').hidden = true;
+    if (typeof audioCapability !== 'undefined' && audioCapability?.enabled && typeof createAudioAnswer === 'function') {
+      $('audio-answer').hidden = false;
+      audioControl = createAudioAnswer($('audio-answer'), blob => submitAudio(blob, q));
+    } else {
+      $('answer-error').textContent = 'Cette question audio est réservée à l’environnement DEV.';
+      $('answer-error').hidden = false;
+    }
+    $('question-title').focus({ preventScroll: true }); scrollConversationToBottom(); return;
+  }
   displayedChoices = [...q.choix];
   if (q.aleatoire) {
     for (let i = displayedChoices.length - 1; i > 0; i--) {
@@ -500,12 +540,16 @@ function submitAnswer(value) {
   if (!result) return;
   let label = 'Je passe cette question.';
   if (!result.skipped) {
-    if (q.reponseOuiNon) label = value ? 'Oui' : 'Non';
+    if (q.type === 'audio_response') label = '🎙️ Réponse vocale envoyée';
+    else if (q.reponseOuiNon) label = value ? 'Oui' : 'Non';
     else if (q.reponseConversationnelle) label = q.choix.filter(c => value.includes(c.valeur)).map(c => c.libelle).join(' et ');
     else label = q.type === 'text' ? value : q.choix.filter(c => q.multiple ? value.includes(c.valeur) : c.valeur === value).map(c => c.libelle).join(' · ');
   }
   const formattedAnswer = formatHebrewText(label);
   $('student-answer').textContent = formattedAnswer.text;
+  if (q.type === 'audio_response' && !result.skipped && typeof createSentVoiceNote === 'function') {
+    $('student-answer').replaceChildren(createSentVoiceNote(value.duration));
+  }
   $('student-answer').dir = formattedAnswer.hebrew ? 'rtl' : 'ltr';
   $('student-answer').lang = formattedAnswer.hebrew ? 'he' : 'fr';
   $('student-message').hidden = false;
@@ -524,7 +568,9 @@ function submitAnswer(value) {
     renderQuestion();
     return;
   }
-  if (result.scored) {
+  if (q.type === 'audio_response') {
+    $('feedback').textContent = result.skipped ? 'Question passée.' : value.status === 'correct' ? '✅ Juste' : '❌ Faux';
+  } else if (result.scored) {
     const rawCorrect = q.type === 'text' ? q.bonneReponse : q.choix.find(c => c.valeur === q.bonneReponse).libelle;
     const formattedCorrect = formatHebrewText(rawCorrect);
     if (result.correct) {
@@ -538,6 +584,15 @@ function submitAnswer(value) {
   }
   $('feedback').className = `bubble teacher feedback${result.scored && !result.correct ? ' incorrect' : ''}`;
   $('feedback').hidden = false;
+  if (typeof audioDemoMode !== 'undefined' && audioDemoMode) {
+    if (engine.state.itemIndex + 1 < audioExperimentQuestions.length) {
+      archiveExchange(); engine.next(); renderQuestion();
+    } else {
+      stopAudio(); engine.next(); $('composer').hidden = true;
+      $('question-level').textContent = 'DEV · Essai terminé';
+    }
+    return;
+  }
   archiveExchange();
   engine.next();
   renderQuestion();
@@ -556,6 +611,12 @@ function archiveExchange(includeFeedback = true) {
     copy.querySelectorAll('iframe').forEach(node => node.remove());
     copy.querySelectorAll('.youtube-preview').forEach(node => { node.hidden = false; });
     copy.querySelectorAll('details').forEach(node => { node.open = false; });
+    if (typeof createVoicePlayer === 'function') copy.querySelectorAll('.voice-player').forEach(player => {
+      const audio = player.querySelector('audio');
+      const playback = createVoicePlayer(audio?.getAttribute('src') || '', 'Écouter ou réécouter la question');
+      playback.element.className = player.className;
+      player.replaceWith(playback.element);
+    });
     $('history').append(copy);
   }
 }
@@ -687,7 +748,7 @@ function showResults() {
   };
   $('result-title').textContent = `Merci ${userProfile.prenom}, voici ton bilan.`;
   $('score').textContent = state.attempted ? `${state.score} / ${state.possible} points` : 'Pas de question notée';
-  $('result-summary').textContent = `${messages[state.reason]} Niveau Lavi conseillé : ${state.variables.niveau_lavi}. ${state.attempted} question(s) évaluée(s) sur les ${questions.filter(q => q.bonneReponse != null).length} disponibles. Ce positionnement est indicatif.`;
+  $('result-summary').textContent = `${messages[state.reason]} Niveau Lavi conseillé : ${state.variables.niveau_lavi}. ${state.attempted} question(s) évaluée(s) sur les ${questions.filter(q => q.bonneReponse != null || q.type === 'audio_response' && q.points > 0).length} disponibles. Ce positionnement est indicatif.`;
   sendResult(state);
   loadClassRecommendations(state);
   $('result-title').focus({ preventScroll: true });
@@ -731,10 +792,13 @@ async function loadQuestionSet() {
     });
     if (!response.ok) throw new Error(`Questions ${response.status}`);
     const data = await response.json();
+    if (typeof questionSetVersion !== 'undefined') questionSetVersion = data.version || '';
     const snapshot = data.snapshot;
     if (!Array.isArray(snapshot?.questions) || !Array.isArray(snapshot?.parcours?.blocs)
       || !snapshot?.parcours?.adaptive
       || !Array.isArray(snapshot?.profileQuestions)) throw new Error('Version des questions incomplète.');
+    if (typeof devAudioQuestions !== 'undefined') devAudioQuestions = Array.isArray(snapshot.devAudioQuestions)
+      ? snapshot.devAudioQuestions.filter(q => q.type === 'audio_response') : [];
     questions.splice(0, questions.length, ...snapshot.questions);
     const adaptiveConfiguration = parcours.adaptive;
     Object.assign(parcours, snapshot.parcours);
@@ -764,3 +828,5 @@ async function loadQuestionSet() {
 $('intake-answer').disabled = true;
 $('intake-submit').disabled = true;
 const questionSetReady = loadQuestionSet();
+
+const audioReady = typeof initializeAudioExperiment === 'function' ? initializeAudioExperiment() : Promise.resolve();

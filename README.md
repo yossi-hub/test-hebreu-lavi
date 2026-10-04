@@ -177,7 +177,7 @@ Contrôler ensuite la notification du bureau et vérifier que le bilan utilisate
 
 La table [Questions test hébreu](https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA) contient 72 éléments actifs du parcours — 68 questions notées et 4 questions d’orientation —, 3 questions de profil et des questions archivées ou hors parcours. Airtable sert de brouillon éditorial. Le site public charge la dernière version publiée au démarrage du test ; si aucune version n’existe encore, il utilise les questions embarquées dans `questions.js`. Un test déjà commencé conserve sa version jusqu’au rechargement de la page.
 
-Sur la branche DEV, ouvrir `/admin.html`, entrer le code d’administration, cliquer sur **Vérifier le brouillon**, puis **Tester dans l’application**. Si l’aperçu convient, cliquer sur **Publier sur DEV**. La publication relit Airtable et enregistre une copie stable dans D1. Elle est refusée si une question de profil manque, si le JSON des choix est invalide, si un bloc devient vide ou si une règle du parcours fait référence à une question retirée. Une question marquée `Brouillon` doit être passée à `Validée` avant publication ; `Archivée` l’exclut. Les questions `Hors parcours` restent dans Airtable sans apparaître dans le test.
+Sur la branche DEV, ouvrir `/admin.html`, entrer le code d’administration et cliquer sur **Mettre à jour l’application DEV**. Ce bouton relit Airtable, vérifie les données et enregistre une copie stable dans D1. **Vérifier et prévisualiser** permet de tester avant publication. La publication est refusée si une question de profil manque, si le JSON des choix est invalide, si un bloc devient vide ou si une règle du parcours fait référence à une question retirée. Une question du parcours marquée `Brouillon` doit être passée à `Validée` avant publication ; `Archivée` l’exclut. Les questions `Hors parcours` restent dans Airtable sans apparaître dans le test. La phase `Audio DEV` ajoute des exercices vocaux à l’essai audio ; seuls ses éléments `Validée` sont inclus.
 
 Les libellés des choix, textes, médias et instructions peuvent être modifiés dans Airtable. Il faut conserver les identifiants des questions et des choix déjà utilisés dans les règles. Une nouvelle question non notée peut être ajoutée à un bloc existant en indiquant `Phase = Test`, un `Bloc ID` existant et une position libre. L’ajout d’une question notée, la suppression d’une question utilisée par les règles ou le changement de sa bonne réponse exigent une adaptation des règles de calcul ; la publication est bloquée jusque-là.
 
@@ -214,3 +214,94 @@ Les quatre questions d’orientation sont présentées ensemble avec un choix Ou
 Au démarrage du mini-test, la page remonte automatiquement pour rendre la progression et la première question visibles. Chaque niveau disposant de questions vidéo dans la banque inclut au moins une question de compréhension orale dans ses trois questions principales (niveaux 2 et 4 à 8). Les niveaux 1 et 3 n’ont actuellement aucune question vidéo dans la banque Airtable.
 
 Les tests vérifient les cinq routes d’orientation, l’écran groupé Oui/Non, les mini-tests adaptatifs de trois questions, la quatrième question de départage, le resserrement des bornes, les niveaux d’inscription 1 à 9 pour chaque route d’orientation, le redémarrage et la validation du profil. Les tests d’interface utilisent un DOM simulé : ils ne remplacent pas une vérification visuelle dans un navigateur.
+
+## Questions et réponses audio — expérimentation DEV
+
+Fichiers ajoutés ou modifiés pour cette fonctionnalité : `app.js`, `engine.js`, `index.html`, `style.css`, `admin.html`, `admin.js`, `audio-recorder.js`, `audio-experiment.js`, `lib/question-set.js`, `lib/audio-dev.js`, `lib/audio-response.js`, `lib/question-audio.js`, `functions/api/question-set.js`, `functions/api/audio-response.js`, `functions/api/question-audio.js`, `scripts/build-static.mjs`, `scripts/dev-server.mjs`, `scripts/test-audio-live.mjs`, `tests/interface.test.cjs`, `tests/question-set.test.mjs`, `tests/question-audio.test.mjs`, `tests/audio-response.test.mjs`, `tests/audio-recorder.test.cjs`, `audio/README.md`, `audio/question-demo.wav`, ce `README.md` et les aperçus `audio-dev-mobile.png` et `airtable-audio-admin.png`. Les modifications déjà présentes concernant Brevo ne font pas partie de cette implémentation audio.
+
+Le bouton **🎙️ Tester les questions audio (DEV)** apparaît sur l’accueil uniquement lorsque le backend active la fonctionnalité. Il parcourt les questions `Audio DEV` publiées depuis Airtable, avec le lecteur et l’envoi de note vocale au style WhatsApp. Cet essai utilise le même modèle de question, le même moteur et la même interface que le test. Il est isolé du calcul du niveau et ne demande aucune coordonnée. Sans question audio publiée, il propose la démo temporaire **מה עשית אתמול בערב?** (« Qu’as-tu fait hier soir ? »).
+
+L’interface vocale conserve le design WhatsApp : barre fixée en bas, micro rond vert, voyant rouge et durée pendant la prise, réécoute avec onde sonore, corbeille pour refaire la prise et flèche pour envoyer. Le message envoyé apparaît dans une bulle verte avec sa durée et les coches d’envoi. La réécoute de la réponse est proposée avant l’envoi ; après traitement, la bulle est un reçu visuel et le fichier vocal brut est libéré.
+
+### Essai local prêt à lancer
+
+Node.js 24 ou supérieur est nécessaire pour le serveur local et son adaptateur SQLite en mémoire. La clé existante est lue dans `.env.local`, uniquement par le serveur :
+
+```sh
+node scripts/build-static.mjs
+node scripts/dev-server.mjs
+```
+
+Ouvrir http://localhost:8788 et cliquer sur **Tester les questions audio (DEV)**. Écouter la question, enregistrer, arrêter, réécouter, recommencer si besoin, puis envoyer. L’arrêt est automatique après 30 secondes. Le panneau **Debug audio · Administration DEV** apparaît après la validation : question, transcription, verdict, confiance, raison et date. Le serveur local ne sert que les fichiers du dossier `dist` ; les secrets et les fichiers du backend sont inaccessibles. Les routes d’envoi des bilans et recommandations sont désactivées dans cet adaptateur local. Le test de niveau reste utilisable, mais ses envois nécessitent le backend Pages habituel.
+
+Le serveur écoute seulement sur l’ordinateur (`127.0.0.1`). Son stockage D1 simulé utilise SQLite **en mémoire** : l’arrêt du serveur efface les essais. Le navigateur conserve au maximum 50 entrées de debug, effacées au rechargement. La clé n’est ni copiée ni modifiée.
+
+Pour activer aussi la publication Airtable en local, renseigner côté serveur dans `.env.local` : `AIRTABLE_TOKEN` (lecture de la base existante), `QUIZ_ADMIN_TOKEN` (au moins 24 caractères) et `QUIZ_PUBLISH_ENABLED=true`, puis relancer le serveur. La clé OpenAI existante reste utilisée. `/admin.html` indique les connexions manquantes, sans afficher aucun secret. Les publications et fichiers de questions sont également effacés à l’arrêt de ce serveur de test en mémoire.
+
+### Fichier de question et critères
+
+Remplacer `audio/question-demo.wav` par votre enregistrement. La démo fournie est une voix synthétique temporaire en hébreu, générée localement sans appel OpenAI. Pour une question MP3 ou M4A, déposer le fichier dans `audio/` et modifier `audioDemo.media.url` dans `lib/audio-dev.js`. Le lecteur de **question** peut lire WAV, MP3 ou M4A selon le navigateur. Les **réponses** sont toujours encodées en WAV PCM mono, 16 bits, 16 kHz.
+
+Modifier `audioDemo.evaluationCriteria` et `audioDemo.acceptedExamples` dans `lib/audio-dev.js` pour ajuster la démo. Les exemples sont indicatifs ; le modèle évalue le sens et la compétence demandée. Une autre activité au passé peut être acceptée. Une réponse courte peut réussir ; l’accent n’est pas évalué. Une transcription incertaine invite à recommencer.
+
+### Ajouter une question audio dans Airtable
+
+La table existante **Questions test hébreu** contient désormais ces champs :
+
+| Champ | Usage |
+| --- | --- |
+| Texte | La question à afficher, en hébreu ou en français. |
+| Fichier audio (`fldUt7uohuKSxSPzc`) | Un fichier WAV, MP3 ou M4A déposé directement dans la cellule, au maximum 5 Mo. |
+| Prompt d’évaluation (`fld1YQmkzzvPO0I6R`) | Le critère pédagogique en texte libre, au maximum 4000 caractères. |
+| Exemples de réponses acceptables (`fldHaqqleHf5aPkII`) | Facultatif : un exemple par ligne, au maximum 20. |
+| Phase | Choisir `Audio DEV` pour l’essai vocal. |
+| État éditorial | `Brouillon` pendant la préparation ; `Validée` pour inclure la question dans l’application. `Archivée` l’exclut. |
+| Mettre à jour DEV | Lien vers la page contenant le bouton de publication. |
+
+Exemple de prompt : « L’élève décrit en hébreu une activité réalisée hier soir, avec un passé compréhensible. Accepter toute activité cohérente, même courte. Refuser une réponse uniquement au futur ou hors sujet. » Les exemples restent indicatifs.
+
+Une nouvelle ligne `Audio DEV` ne nécessite ni modification du code, ni `Bloc ID`, ni position dans le parcours. `Type` peut être `audio_response` ou vide (déduit de la phase). L’ID Airtable est utilisé si **ID question** est vide. **Points** vaut 1 par défaut ; **Ordre global** permet d’ordonner plusieurs questions. La ligne exemple `dev-audio-airtable-1` est un brouillon prêt à recevoir votre fichier. Les questions audio en brouillon restent exclues de l’aperçu et de la publication. Une question `Validée` incomplète bloque la mise à jour avec la liste des corrections nécessaires.
+
+Cliquer sur le lien **Mettre à jour DEV** dans Airtable, entrer le code admin, puis sur **Mettre à jour l’application DEV**. Le bouton valide et publie en une seule requête ; **Ouvrir l’application mise à jour** permet ensuite de tester. Une double pression ne déclenche pas une seconde publication. Les critères restent côté serveur pour les élèves ; l’aperçu administrateur les conserve. L’évaluation ignore tout critère fourni par le navigateur. Un test en cours conserve ses questions ; si une nouvelle version est publiée, il faut recharger avant de soumettre une réponse vocale à cette version.
+
+Les [liens des pièces jointes Airtable expirent](https://support.airtable.com/articles/9671148410-airtable-attachment-url-behavior). À la publication, les fichiers des **questions** sont téléchargés, vérifiés et copiés en fragments dans `quiz_question_audio` dans D1 Preview, avec un maximum de 20 Mo par publication. La copie et la nouvelle version sont enregistrées dans une transaction ; une panne de téléchargement conserve la version précédente. `/api/question-audio` sert les fichiers de la version active et les plages d’octets nécessaires à Safari. Les fichiers des anciennes versions sont purgés après une publication réussie. L’aperçu utilise les liens Airtable fraîchement obtenus : revérifier le brouillon si la page reste ouverte plusieurs heures. Les réponses vocales des élèves ne sont jamais stockées dans cette table.
+
+Pour remplacer une question dans le **test de niveau adaptatif**, conserver son **ID**, son **Bloc ID**, sa **Position**, son **Niveau** et ses **Points** ; choisir `Type = audio_response`, déposer le fichier et renseigner le prompt direct. Vider la bonne réponse et les choix, désactiver Oui/Non et choix multiples. La phase reste `Test`. L’ajout de nouvelles places dans les mini-tests adaptatifs demande encore une modification de leurs règles ; la phase `Audio DEV` sert à expérimenter librement avant cette intégration. L’ancienne configuration audio dans **Données importées (JSON)** reste reconnue pour les premiers essais.
+
+### Activation sur le site DEV et essai iPhone
+
+Pour la mettre à disposition sur le site DEV, configurer **uniquement l’environnement Preview** de Cloudflare Pages : `QUIZ_AUDIO_ENABLED=true`, la clé serveur `OPENAI_API_KEY` existante, `QUIZ_ADMIN_TOKEN` et la liaison `QUIZ_DB` déjà utilisée. Déployer ensuite les changements sur la branche **DEV**. Le serveur vérifie à la fois le réglage, la branche `DEV` et l’hôte exact `dev.test-hebreu-lavi.pages.dev`. Le build écrit la branche Cloudflare dans `lib/deployment-context.js` pour les Functions ; cette métadonnée n’est pas servie au navigateur et ne dépend pas de la présence de `CF_PAGES_BRANCH` au runtime. La fonctionnalité reste désactivée sur `test.oulpanlavi.com`, même si le réglage est ajouté par erreur en production. Les autres hôtes de preview ne sont pas activés pour cette V1.
+
+Après ce déploiement DEV, ouvrir **https://dev.test-hebreu-lavi.pages.dev/** dans Safari sur l’iPhone, cliquer sur la démo et autoriser le microphone. Le HTTPS est nécessaire : une adresse HTTP du réseau local ne permet pas cet essai. Tester lecture et réécoute, enregistrement, arrêt, nouvelle prise et validation. Quitter la page ou passer l’application en arrière-plan interrompt et efface l’enregistrement. En cas de refus, réautoriser le microphone dans les réglages du site Safari puis réessayer. Pour voir le debug sur iPhone, ouvrir l’aperçu depuis `/admin.html` dans la même session Safari ; sans code admin, l’élève ne reçoit ni transcription ni raison.
+
+### Traitement, stockage et modèles
+
+`/api/audio-response` n’accepte pour les réponses que le WAV nécessaire à cette V1. Le serveur vérifie la signature RIFF/WAVE, le format PCM mono 16 bits, le débit, la taille (1 Mio maximum), la durée réelle (30 secondes maximum) et le volume mesuré dans les échantillons. Un audio vide ou trop faible ne provoque aucun appel OpenAI. Un enregistrement exploitable provoque un appel de transcription puis un appel d’évaluation, sans nouvelle tentative automatique. Les boutons empêchent la double validation.
+
+- Transcription : `gpt-4o-mini-transcribe`, langue attendue `he`, sortie JSON avec probabilités de transcription. Modifiable via `OPENAI_TRANSCRIPTION_MODEL` avec un modèle compatible avec cette sortie et `include=logprobs`. [Référence officielle OpenAI](https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create).
+- Évaluation : `OPENAI_AUDIO_EVALUATION_MODEL`, sinon `OPENAI_MODEL`, sinon `gpt-6-luna` comme l’intégration existante. Appel Responses avec `store:false`, transcription dans un message utilisateur séparé des instructions et critères serveur, et schéma JSON strict. Les modèles de remplacement doivent accepter les options Responses utilisées. [Sorties structurées OpenAI](https://developers.openai.com/api/docs/guides/structured-outputs).
+- Verdict : seulement `correct`, `incorrect`, `uncertain`, avec `confidence` entre 0 et 1 et `reason`. Une décision sous 0,75 devient `uncertain`. Une transcription dont la moyenne géométrique des probabilités est sous 0,5 est également incertaine. Ces seuils sont des heuristiques DEV, pas des probabilités pédagogiques calibrées.
+- L’élève voit **✅ Juste**, **❌ Faux**, ou **🎙️ Nous n’avons pas réussi à analyser correctement votre réponse. Merci de réessayer.** Une incertitude ou une erreur technique n’enregistre aucune réponse dans le moteur, ne change aucun score et ne fait pas avancer le mini-test. Passer volontairement une question garde le comportement existant du test.
+- D1 conserve dans `audio_response_attempts` la question, la transcription, le verdict, la confiance, la raison et la date, sans identité d’élève et sans fichier vocal. Les entrées de plus de sept jours sont purgées lors du prochain enregistrement. Une panne D1 ne transforme pas un verdict en erreur. Le debug indique si l’entrée a été conservée. Le fichier brut reste en mémoire pendant le traitement puis est libéré ; aucun stockage de fichier n’est créé.
+
+Consultation administrative des essais dans D1 **Preview** :
+
+```sql
+SELECT question, transcription, status, confidence, reason, answered_at
+FROM audio_response_attempts ORDER BY answered_at DESC LIMIT 30;
+```
+
+### Vérification
+
+```sh
+node tests/engine.test.cjs
+node tests/interface.test.cjs
+node tests/recommendations.test.mjs
+node tests/question-set.test.mjs
+node --test tests/results.test.mjs tests/audio-response.test.mjs tests/audio-recorder.test.cjs tests/question-audio.test.mjs
+node scripts/build-static.mjs
+```
+
+Les tests sans API vérifient le verrou DEV, le schéma, les critères serveur, le format et la durée des fichiers, le silence, le son faible, les erreurs de transcription/API, l’absence de nouvelle tentative, le score, la permission refusée, l’arrêt après 30 secondes, l’arrière-plan et le nettoyage du micro. `scripts/test-audio-live.mjs --live` effectue **cinq essais payants** avec des voix synthétiques locales sur macOS : réponse correcte, formulation différente, futur incorrect, hors sujet et réponse très courte. Ne pas l’exécuter automatiquement. Les fichiers de ces essais sont temporaires et supprimés.
+
+L’affichage a été contrôlé dans le navigateur à 390 × 844 pixels, sans débordement horizontal. Cela ne remplace pas une validation du microphone sur un véritable iPhone/Safari. Le serveur local réutilise les mêmes handlers Pages Functions ; les essais locaux ne valident pas un déploiement Cloudflare.

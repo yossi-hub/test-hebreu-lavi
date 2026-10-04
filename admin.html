@@ -12,14 +12,20 @@
   <header class="brand"><span class="brand-mark" lang="he">ל</span><span>Professeur Lavi<span class="brand-detail">Questions du test</span></span><span class="header-tag">DEV</span></header>
   <main>
     <section class="card admin-card" aria-labelledby="admin-title">
-      <h1 id="admin-title">Prévisualiser et publier les questions</h1>
-      <p>Modifie les questions dans <a href="https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA" target="_blank" rel="noopener noreferrer">la table Airtable</a>, puis vérifie le brouillon ici avant de le publier sur DEV.</p>
+      <h1 id="admin-title">Mettre à jour l’application DEV</h1>
+      <p>Prépare tes questions dans <a href="https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA" target="_blank" rel="noopener noreferrer">la table Airtable</a>, puis publie-les ici.</p>
+      <ol class="admin-guide">
+        <li>Ajoute une ligne avec <strong>Phase = Audio DEV</strong> et le texte de la question dans <strong>Texte</strong>.</li>
+        <li>Dépose ton enregistrement dans <strong>Fichier audio</strong> et décris la réponse attendue dans <strong>Prompt d’évaluation</strong>. Les exemples sont facultatifs.</li>
+        <li>Passe <strong>État éditorial</strong> à <strong>Validée</strong>, puis clique sur le bouton ci-dessous. Les brouillons audio restent dans Airtable.</li>
+      </ol>
       <label for="admin-token">Code d’administration DEV</label>
       <input id="admin-token" type="password" autocomplete="off" spellcheck="false">
       <div class="admin-actions">
-        <button id="check-draft" class="primary" type="button">Vérifier le brouillon</button>
+        <button id="publish-draft" class="primary" type="button" disabled>Mettre à jour l’application DEV</button>
+        <button id="check-draft" class="primary secondary" type="button">Vérifier et prévisualiser</button>
         <a id="open-preview" class="primary" href="/?preview=1" hidden>Tester dans l’application</a>
-        <button id="publish-draft" class="primary" type="button" disabled>Publier sur DEV</button>
+        <a id="open-published" class="primary" href="/" hidden>Ouvrir l’application mise à jour</a>
       </div>
       <p id="admin-status" class="help" role="status" aria-live="polite"></p>
       <ul id="admin-errors" class="admin-errors" aria-label="Problèmes à corriger"></ul>

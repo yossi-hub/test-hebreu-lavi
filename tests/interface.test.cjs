@@ -27,7 +27,7 @@ const context=vm.createContext({assert,URL,URLSearchParams,fetch:async()=>({ok:t
 }});
 context.scrollPositions=[];
 context.scrollTo=({top})=>context.scrollPositions.push(top);
-for(const file of ['questions.js','engine.js','app.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context);
+for(const file of ['questions.js','engine.js','audio-recorder.js','audio-experiment.js','app.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context);
 vm.runInContext(`
 const firstQcm=questions.find(q=>q.id==='353a37e5-2d45-4bec-a856-a8312586b6f0');
 assert.equal(parseTypedAnswer(firstQcm,'אני דויד'),firstQcm.bonneReponse);
@@ -129,4 +129,33 @@ const videoPreview=created.find(e=>e.className==='youtube-preview');
 videoPreview.events.click();
 assert.ok(created.some(e=>e.tag==='iframe' && e.src.includes('youtube-nocookie.com/embed/')),'Lecture YouTube intégrée');
 assert.ok(new Set(created.filter(e=>e.tag==='img' && e.src.includes('images.typeform.com')).map(e=>e.src)).size>=1);
+vm.runInContext(`
+// Vérifie le parcours de plusieurs nouvelles questions Airtable, hors placement.
+createAudioAnswer = () => ({ dispose() {} });
+createVoicePlayer = () => ({ element: document.createElement('div'), audio: document.createElement('audio') });
+createSentVoiceNote = () => document.createElement('span');
+audioCapability = { enabled: true };
+devAudioQuestions = [
+  { id: 'nouvelle-audio-1', type: 'audio_response', texte: 'Première question audio', points: 1, niveau: 1, choix: [], bonneReponse: null, obligatoire: true },
+  { id: 'nouvelle-audio-2', type: 'audio_response', texte: 'Deuxième question audio', points: 1, niveau: 2, choix: [], bonneReponse: null, obligatoire: true },
+];
+$('audio-demo-start').events.click();
+assert.equal(engine.current().id, 'nouvelle-audio-1');
+assert.equal($('progress-text').textContent, 'Question audio 1 sur 2');
+const unchanged = engine.state.attempted;
+submitAnswer({ status: 'uncertain', confidence: 0.4 });
+assert.equal(engine.state.attempted, unchanged);
+submitAnswer({ status: 'correct', confidence: 0.95, duration: 2 });
+assert.equal(engine.current().id, 'nouvelle-audio-2');
+assert.equal($('progress-text').textContent, 'Question audio 2 sur 2');
+submitAnswer({ status: 'incorrect', confidence: 0.95, duration: 3 });
+assert.equal(engine.state.finished, true);
+assert.equal($('results').hidden, true);
+assert.equal($('composer').hidden, true);
+assert.equal($('feedback').textContent, '❌ Faux');
+$('audio-demo-return').events.click();
+assert.equal(audioDemoMode, false);
+assert.equal($('welcome').hidden, false);
+assert.equal(engine.state.mode, 'orientation');
+`, context);
 console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');
