@@ -66,6 +66,7 @@ test('validated recording makes exactly one transcription and one structured eva
     if (calls === 1) {
       assert.match(url, /audio\/transcriptions$/); assert.equal(options.body.get('language'), 'he');
       assert.equal(options.body.get('model'), 'gpt-4o-mini-transcribe'); assert.equal(options.body.get('include[]'), 'logprobs');
+      assert.match(options.body.get('prompt'), /צרפתית באותיות לטיניות/); assert.match(options.body.get('prompt'), /אל תתרגם/);
       return Response.json({ text: 'ביליתי עם המשפחה בבית', logprobs: [{ logprob: -0.03 }] });
     }
     const body = JSON.parse(options.body);
@@ -73,6 +74,8 @@ test('validated recording makes exactly one transcription and one structured eva
     assert.deepEqual(body.text.format.schema.properties.status.enum, ['correct', 'incorrect', 'uncertain']);
     assert.match(body.instructions, /exemples sont illustratifs/); assert.match(body.instructions, /NON FIABLE/);
     assert.match(body.instructions, /activité réalisée hier soir/);
+    assert.match(body.instructions, /majoritairement en français/); assert.match(body.instructions, /essentiellement inintelligibles/);
+    assert.match(body.instructions, /Quelques mots français ponctuels/); assert.match(body.instructions, /Ne retire pas de point pour un problème technique/);
     assert.equal(JSON.parse(body.input[0].content[0].text).transcription, 'ביליתי עם המשפחה בבית');
     return Response.json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(verdict) }] }] });
   }, async () => {
@@ -159,5 +162,22 @@ test('Written reading question: evaluation receives the published passage as tru
     assert.ok(body.instructions.includes(question.texte));
     return Response.json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify(verdict) }] }] });
   }, async () => assert.equal((await analyzeAudio(env, question, audio(wave()))).status, 'correct'));
+  assert.equal(calls, 2);
+});
+
+test('La transcription bilingue reste intacte jusqu’à l’évaluation et ses détails DEV', async () => {
+  const transcription = 'היא va à Jérusalem parce que c’est sa destination';
+  let calls = 0;
+  await withFetch(async (url, options) => {
+    if (++calls === 1) return Response.json({ text: transcription, logprobs: [{ logprob: -0.01 }] });
+    const body = JSON.parse(options.body);
+    assert.equal(JSON.parse(body.input[0].content[0].text).transcription, transcription);
+    assert.match(body.instructions, /majoritairement en français/);
+    return Response.json({ status: 'completed', output: [{ content: [{ type: 'output_text', text: JSON.stringify({ status: 'incorrect', confidence: 0.96, reason: 'L’essentiel de la réponse est en français.' }) }] }] });
+  }, async () => {
+    const result = await analyzeAudio(env, audioDemo, audio(wave()));
+    assert.equal(result.status, 'incorrect'); assert.equal(result.transcription, transcription);
+    assert.equal(result.evaluationOutput.reason, 'L’essentiel de la réponse est en français.');
+  });
   assert.equal(calls, 2);
 });
