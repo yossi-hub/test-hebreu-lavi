@@ -56,8 +56,6 @@ export async function onRequestPost({ request, env }) {
   // This additional field is mapped only in Make's internal notification.
   payload.internal_location_html = internalLocationHtml(payload.location);
   const saved = await saveParticipation(env.QUIZ_DB, payload);
-  // La préférence de contact reste dans l’application ; aucun export tiers.
-  delete payload.format_cours;
   const mark = status => saved ? markNotification(env.QUIZ_DB, payload.participation_id, status) : Promise.resolve();
 
   // Independent delivery: Brevo still receives the result when Make is unavailable.
