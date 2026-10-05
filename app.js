@@ -259,7 +259,14 @@ function renderMedia(question) {
     passage.className = 'reading-passage';
     passage.lang = 'he';
     passage.dir = 'rtl';
-    passage.textContent = currentPassage;
+    // Recognize inline bold markers while keeping Airtable content as plain text.
+    if (!/\*\*[^*\n]+\*\*/.test(currentPassage)) passage.textContent = currentPassage;
+    else for (const part of currentPassage.split(/(\*\*[^*\n]+\*\*)/g)) {
+      const isBold = part.startsWith('**') && part.endsWith('**') && part.length > 4;
+      const span = document.createElement(isBold ? 'strong' : 'span');
+      span.textContent = isBold ? part.slice(2, -2) : part;
+      passage.append(span);
+    }
     passageContainer.append(passage);
   }
   const mediaKey = question.media ? `${question.media.type}:${question.media.url}` : '';
