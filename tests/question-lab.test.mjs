@@ -37,7 +37,7 @@ function fixture() {
   const passage = 'דנה נוסעת לירושלים ביום ראשון.';
   const drafts = [1, 2, 3].map(position => ({ id: `draft-${position}`, fields: {
     [FIELDS.id]: `reading-${position}`, [FIELDS.phase]: 'Audio DEV', [FIELDS.editorialState]: 'Brouillon',
-    [FIELDS.text]: 'לאן דנה נוסעת?', [FIELDS.audioPrompt]: 'Elle se rend à Jérusalem.',
+    [FIELDS.level]: 9, [FIELDS.text]: 'לאן דנה נוסעת?', [FIELDS.audioPrompt]: 'Elle se rend à Jérusalem.',
     [FIELDS.audioExamples]: 'לירושלים', [FIELDS.supportGroup]: 'voyage', [FIELDS.blockPosition]: position,
     ...(position === 1 ? { [FIELDS.supportText]: passage } : {}),
   } }));
@@ -93,7 +93,7 @@ test('Les trois brouillons sont testables sans changer Airtable ni la publicatio
       assert.ok(data.expiresAt > Date.now());
       assert.deepEqual(data.questions.map(q => q.id), ['reading-1', 'reading-2', 'reading-3']);
       for (const q of data.questions) {
-        assert.equal(q.supportText, passage); assert.equal(q.evaluationCriteria, undefined); assert.equal(q.acceptedExamples, undefined); assert.equal(q.audioAttachment, undefined);
+        assert.equal(q.niveau, 9); assert.equal(q.supportText, passage); assert.equal(q.evaluationCriteria, undefined); assert.equal(q.acceptedExamples, undefined); assert.equal(q.audioAttachment, undefined);
       }
       assert.equal(JSON.stringify(data).includes(env.AIRTABLE_TOKEN), false);
       const read = await (await onRequestGet({ request: request({ method: 'GET' }), env })).json();
@@ -103,6 +103,13 @@ test('Les trois brouillons sont testables sans changer Airtable ni la publicatio
       assert.ok(drafts.every(q => q.fields[FIELDS.editorialState] === 'Brouillon'));
       const published = compileQuestionSet(base, records, { audioEnabled: true });
       assert.equal(published.errors.length, 0); assert.equal(published.snapshot.devAudioQuestions.length, 0);
+      const validated = structuredClone(records);
+      for (const row of validated) if (row.fields[FIELDS.editorialState] === 'Brouillon') row.fields[FIELDS.editorialState] = 'Validée';
+      const ready = compileQuestionSet(base, validated, { audioEnabled: true, requireReady: true });
+      assert.equal(ready.errors.length, 0); assert.equal(ready.snapshot.devAudioQuestions.length, 3);
+      const normal = validated.find(row => row.fields[FIELDS.phase] === 'Test'); normal.fields[FIELDS.level] = 9;
+      assert.ok(compileQuestionSet(base, validated, { audioEnabled: true }).errors.some(error => error.startsWith(normal.fields[FIELDS.id]) && /niveau invalide/.test(error)));
+
       assert.equal((await onRequestPost({ request: request(), env })).status, 429);
       assert.equal(fetches, 1);
     } finally { db.close(); }

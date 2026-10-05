@@ -283,7 +283,7 @@ La table Questions test hébreu contient **Groupe support** (`fld43YCo7pAFy0KBR`
 
 ### Espace de test des brouillons
 
-Ouvrir **`/?lab=1`** sur DEV, ou cliquer sur **Tester mes questions, brouillons inclus** dans l’administration. **Charger mes questions depuis Airtable** prépare un essai des lignes **Audio DEV**, y compris les brouillons, sans changer leur état éditorial ni la publication active. Sélectionner un groupe, puis **Commencer l’essai**. Aucun profil ni bilan n’est demandé ; le bouton Passer permet de parcourir les questions.
+Ouvrir **`/?lab=1`** sur DEV, ou cliquer sur **Tester mes questions, brouillons inclus** dans l’administration. **Charger mes questions depuis Airtable** prépare un essai des lignes **Audio DEV**, y compris les brouillons, sans changer leur état éditorial ni la publication active. Sélectionner un groupe, puis **Commencer l’essai**. Aucun profil ni bilan n’est demandé ; le bouton Passer permet de parcourir les questions. Les exercices Audio DEV acceptent les niveaux 1 à 9 ; le parcours de placement conserve ses mini-tests de niveaux 1 à 8.
 
 L’espace réutilise le texte hébreu de droite à gauche, l’enregistreur WhatsApp et l’évaluation vocale existants. Le serveur contrôle les groupes et les critères avant chaque chargement. L’aperçu expire après 30 minutes ; recharger depuis Airtable renouvelle les liens temporaires des fichiers de question. Les réponses utilisent la version de cet aperçu et des critères serveur. Les erreurs conservent l’essai précédent ; le chargement et la publication partagent un verrou pour éviter les requêtes répétées. L’ancienne route d’aperçu administrateur reste protégée.
 
