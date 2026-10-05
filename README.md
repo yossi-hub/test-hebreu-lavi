@@ -334,3 +334,5 @@ Le laboratoire DEV (`?lab=1`) accepte aussi les QCM, avec des niveaux de 1 à 9 
 
 
 Activation production validée : sur la branche main, les hôtes `test.oulpanlavi.com` et `test-hebreu-lavi.pages.dev` peuvent utiliser les fonctionnalités audio, le lab et l’actualisation Airtable lorsque `QUIZ_AUDIO_ENABLED=true`, `QUIZ_PRODUCTION_FEATURES_ENABLED=true` et, pour l’import, `QUIZ_PUBLISH_ENABLED=true`. Les bases D1 et secrets restent propres à l’environnement. Importer dans le lab ne modifie jamais les questions du test de niveau ; les validations du parcours adaptatif restent requises lors d’une publication normale.
+
+Les nouveaux QCM avec un Groupe support et un ID distinct du parcours adaptatif sont des exercices au même titre que la phase Audio DEV : ils sont disponibles dans le lab en brouillon et dans le catalogue publié une fois Validée. Les exercices mixtes restent séparés du calcul de placement ; leurs positions, choix et bonnes réponses sont vérifiés avant publication.

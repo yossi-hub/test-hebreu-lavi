@@ -817,7 +817,7 @@ async function loadQuestionSet() {
       || !snapshot?.parcours?.adaptive
       || !Array.isArray(snapshot?.profileQuestions)) throw new Error('Version des questions incomplète.');
     if (typeof devAudioQuestions !== 'undefined') devAudioQuestions = Array.isArray(snapshot.devAudioQuestions)
-      ? snapshot.devAudioQuestions.filter(q => q.type === 'audio_response') : [];
+      ? snapshot.devAudioQuestions.filter(q => ['audio_response', 'qcm'].includes(q.type)) : [];
     questions.splice(0, questions.length, ...snapshot.questions);
     const adaptiveConfiguration = parcours.adaptive;
     Object.assign(parcours, snapshot.parcours);

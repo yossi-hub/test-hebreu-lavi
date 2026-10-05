@@ -195,7 +195,16 @@ test('Le lab enchaîne des QCM et réponses audio de niveau 9 sans règles de pl
       assert.equal(data.questions[3].bonneReponse, 'vrai');
       assert.equal(data.questions[3].supportText, data.questions[0].supportText);
       assert.equal(db.prepare('SELECT version FROM quiz_publications').get().version, 'published-before-lab');
-      assert.ok(compileQuestionSet(base, records, { audioEnabled: true }).errors.some(e => /niveau invalide/.test(e)));
+      const publishedDrafts = compileQuestionSet(base, records, { audioEnabled: true });
+      assert.equal(publishedDrafts.errors.length, 0);
+      assert.equal(publishedDrafts.snapshot.devAudioQuestions.length, 0);
+      const validated = structuredClone(records);
+      for (const row of validated) if (row.fields[FIELDS.editorialState] === 'Brouillon') row.fields[FIELDS.editorialState] = 'Validée';
+      const publishable = compileQuestionSet(base, validated, { audioEnabled: true, requireReady: true });
+      assert.equal(publishable.errors.length, 0, JSON.stringify(publishable.errors));
+      assert.equal(publishable.snapshot.devAudioQuestions.length, 6);
+      assert.equal(publishable.snapshot.devAudioQuestions[3].type, 'qcm');
+      assert.deepEqual(publishable.snapshot.questions, publishedDrafts.snapshot.questions);
       for (const change of [
         row => { row.fields[FIELDS.level] = 10; },
         row => { row.fields[FIELDS.answer] = JSON.stringify('absent'); },
