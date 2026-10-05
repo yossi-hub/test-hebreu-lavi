@@ -211,3 +211,21 @@ test('Le lab enchaîne des QCM et réponses audio de niveau 9 sans règles de pl
     } finally { db.close(); }
   });
 });
+
+
+test('La production exige une activation explicite et la branche main ; le lab reste séparé du test publié', async () => {
+  const { db, env, records } = fixture();
+  const prodOrigin = 'https://test.oulpanlavi.com';
+  const prodRequest = () => request({ origin: prodOrigin, headers: { Origin: prodOrigin } });
+  await withFetch(async () => Response.json({ records }), async () => {
+    try {
+      assert.equal((await onRequestPost({ request: prodRequest(), env: { ...env, CF_PAGES_BRANCH: 'main' } })).status, 404);
+      const activated = { ...env, CF_PAGES_BRANCH: 'main', QUIZ_PRODUCTION_FEATURES_ENABLED: 'true' };
+      assert.equal((await onRequestPost({ request: prodRequest(), env: { ...activated, CF_PAGES_BRANCH: 'DEV' } })).status, 404);
+      assert.equal((await onRequestPost({ request: prodRequest(), env: activated })).status, 200);
+      assert.equal(db.prepare('SELECT version FROM quiz_publications').get().version, 'published-before-lab');
+      const capability = await (await getAudioCapability({ request: new Request(`${prodOrigin}/api/audio-response`), env: activated })).json();
+      assert.equal(capability.enabled, true); assert.equal(capability.environment, 'production'); assert.equal(capability.debug, false);
+    } finally { db.close(); }
+  });
+});

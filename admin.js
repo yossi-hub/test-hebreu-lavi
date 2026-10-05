@@ -19,7 +19,7 @@ fetch('/api/question-sync').then(async response => {
 
 function counts(summary) {
   const audio = summary.audioQuestions || 0;
-  return `${summary.testQuestions} questions du test, ${summary.profileQuestions} de profil et ${audio} question${audio > 1 ? 's' : ''} audio DEV`;
+  return `${summary.testQuestions} questions du test, ${summary.profileQuestions} de profil et ${audio} question${audio > 1 ? 's' : ''} audio`;
 }
 
 function showErrors(items) {
@@ -44,8 +44,8 @@ publish.addEventListener('click', async () => {
       throw new Error(data.error || 'Actualisation impossible. Réessaie.');
     }
     status.textContent = data.updated
-      ? `Application DEV mise à jour : ${counts(data.summary)}, le ${new Date(data.publishedAt).toLocaleString('fr-FR')}. Recharge l’application pour utiliser cette version.`
-      : `L’application DEV est déjà à jour : ${counts(data.summary)}.`;
+      ? `Application mise à jour : ${counts(data.summary)}, le ${new Date(data.publishedAt).toLocaleString('fr-FR')}. Recharge l’application pour utiliser cette version.`
+      : `L’application est déjà à jour : ${counts(data.summary)}.`;
     if (data.summary.audioDrafts) status.textContent += ` ${data.summary.audioDrafts} brouillon(s) audio non inclus.`;
     publishedLink.hidden = false;
   } catch (error) {

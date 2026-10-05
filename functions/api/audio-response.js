@@ -11,7 +11,7 @@ const debugAllowed = (request, env) => authorized(request, env)
 
 export async function onRequestGet({ request, env }) {
   if (!audioDevEnabled(request, env)) return json({ enabled: false }, 404);
-  return json({ enabled: true, debug: debugAllowed(request, env), demo: publicAudioQuestion(audioDemo) });
+  return json({ enabled: true, environment: new URL(request.url).hostname === 'dev.test-hebreu-lavi.pages.dev' ? 'development' : 'production', debug: debugAllowed(request, env), demo: publicAudioQuestion(audioDemo) });
 }
 
 async function questionFor(context, form) {

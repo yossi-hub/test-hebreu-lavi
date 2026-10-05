@@ -7,21 +7,21 @@ const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(b
 });
 
 export function onRequestGet({ request, env }) {
-  if (!audioDevEnabled(request, env)) return json({ ok: false, ready: false, error: 'Actualisation réservée à DEV.' }, 404);
+  if (!audioDevEnabled(request, env)) return json({ ok: false, ready: false, error: 'Actualisation non activée dans cet environnement.' }, 404);
   const missing = [];
   if (!env.AIRTABLE_TOKEN) missing.push('La connexion Airtable');
-  if (!questionSyncEnabled(request, env) || !env.QUIZ_DB) missing.push('La publication DEV');
+  if (!questionSyncEnabled(request, env) || !env.QUIZ_DB) missing.push('La publication');
   return json({ ok: true, ready: missing.length === 0, missing });
 }
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  if (!audioDevEnabled(request, env)) return json({ ok: false, error: 'Actualisation réservée à DEV.' }, 404);
+  if (!audioDevEnabled(request, env)) return json({ ok: false, error: 'Actualisation non activée dans cet environnement.' }, 404);
   if (!questionSyncEnabled(request, env) || !env.QUIZ_DB || !env.AIRTABLE_TOKEN) {
-    return json({ ok: false, error: 'La connexion Airtable et la publication DEV doivent être configurées.' }, 503);
+    return json({ ok: false, error: 'La connexion Airtable et la publication doivent être configurées.' }, 503);
   }
   const url = new URL(request.url);
-  if (request.headers.get('Origin') !== url.origin) return json({ ok: false, error: 'Ouvre la page de mise à jour DEV.' }, 403);
+  if (request.headers.get('Origin') !== url.origin) return json({ ok: false, error: 'Ouvre la page de mise à jour.' }, 403);
   // Le navigateur déclenche uniquement une relecture. Il ne peut fournir
   // ni questions, ni prompts, ni base Airtable, ni fichiers à publier.
   if (url.search) return json({ ok: false, error: 'Cette actualisation ne reçoit aucun paramètre.' }, 400);

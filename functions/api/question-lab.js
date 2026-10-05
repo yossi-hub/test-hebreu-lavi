@@ -19,10 +19,10 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   if (!audioDevEnabled(request, env)) return json({ ok: false }, 404);
   if (!questionSyncEnabled(request, env) || !env.QUIZ_DB || !env.AIRTABLE_TOKEN) {
-    return json({ ok: false, error: 'La connexion Airtable et l’environnement DEV doivent être configurés.' }, 503);
+    return json({ ok: false, error: 'La connexion Airtable et cet environnement doivent être configurés.' }, 503);
   }
   const url = new URL(request.url);
-  if (request.headers.get('Origin') !== url.origin) return json({ ok: false, error: 'Ouvre l’espace de test DEV.' }, 403);
+  if (request.headers.get('Origin') !== url.origin) return json({ ok: false, error: 'Ouvre l’espace de test.' }, 403);
   if (url.search) return json({ ok: false, error: 'Modifie tes questions dans Airtable.' }, 400);
   // Le navigateur ne peut fournir ni contenu, ni source, ni critères d’évaluation.
   if (request.body) {

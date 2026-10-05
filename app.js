@@ -469,7 +469,7 @@ function renderQuestion(scrollToTop = false) {
       const number = audioExperimentQuestions.findIndex(item => item.id === q.id) + 1;
       $('progress-text').textContent = `${questionLabMode ? 'Question' : 'Question audio'} ${number} sur ${audioExperimentQuestions.length}`;
       $('progress').max = audioExperimentQuestions.length; $('progress').value = number;
-      $('question-level').textContent = 'DEV';
+      $('question-level').textContent = audioCapability?.environment === 'production' ? 'ESSAI' : 'DEV';
     }
   }
   $('progress-label').hidden = !q.points;
@@ -605,7 +605,7 @@ function submitAnswer(value) {
       archiveExchange(); engine.next(); renderQuestion();
     } else {
       stopAudio(); engine.next(); $('composer').hidden = true;
-      $('question-level').textContent = 'DEV · Essai terminé';
+      $('question-level').textContent = audioCapability?.environment === 'production' ? 'Essai terminé' : 'DEV · Essai terminé';
     }
     return;
   }

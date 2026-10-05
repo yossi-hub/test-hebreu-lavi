@@ -331,3 +331,6 @@ Les consignes vocales communes imposent un minimum d’expression en hébreu : u
 
 
 Le laboratoire DEV (`?lab=1`) accepte aussi les QCM, avec des niveaux de 1 à 9 et des groupes mêlant QCM et réponses audio. Utiliser `Phase = Audio DEV`, `Type = qcm`, `Choix (JSON)` et `Bonne réponse (JSON)` ; les nouvelles questions `Phase = Test` ayant un `Groupe support` et un ID absent du parcours de référence sont également reconnues dans le lab. Les positions du groupe doivent être consécutives à partir de 1, avec au moins trois questions. Le lab ne calcule pas un niveau de placement et ne modifie pas la publication du test classique, qui conserve ses validations de niveaux 1 à 8 et ses règles adaptatives.
+
+
+Activation production validée : sur la branche main, les hôtes `test.oulpanlavi.com` et `test-hebreu-lavi.pages.dev` peuvent utiliser les fonctionnalités audio, le lab et l’actualisation Airtable lorsque `QUIZ_AUDIO_ENABLED=true`, `QUIZ_PRODUCTION_FEATURES_ENABLED=true` et, pour l’import, `QUIZ_PUBLISH_ENABLED=true`. Les bases D1 et secrets restent propres à l’environnement. Importer dans le lab ne modifie jamais les questions du test de niveau ; les validations du parcours adaptatif restent requises lors d’une publication normale.
