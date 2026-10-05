@@ -2,6 +2,8 @@
 let audioCapability = null;
 let audioControl = null;
 let audioDemoMode = false;
+let questionLabMode = false;
+let questionLabBusy = false;
 let questionSetVersion = '';
 let devAudioQuestions = [];
 let audioExperimentQuestions = [];
@@ -19,6 +21,7 @@ async function submitAudio(blob, question) {
   const currentEngine = engine;
   const form = new FormData();
   form.append('questionId', question.id); form.append('version', questionSetVersion);
+  if (questionLabMode) form.append('lab', '1');
   form.append('audio', blob, 'response.wav');
   const preview = new URLSearchParams(globalThis.location?.search || '').get('preview') === '1';
   const token = globalThis.sessionStorage?.getItem('quizAdminToken');
@@ -63,6 +66,9 @@ async function loadAudioCapability() {
       $('audio-catalog-status').textContent = devAudioQuestions.length
         ? `${devAudioQuestions.length} question${devAudioQuestions.length > 1 ? 's' : ''} audio ${new URLSearchParams(globalThis.location?.search || '').get('preview') === '1' ? 'en aperçu Airtable' : 'publiée' + (devAudioQuestions.length > 1 ? 's' : '')}.`
         : 'Démo audio · Ajoute tes questions dans Airtable, puis mets à jour DEV.';
+      if (new URLSearchParams(globalThis.location?.search || '').get('lab') === '1') {
+        configureQuestionLab(); await loadQuestionLab(false);
+      }
     }
   } catch { /* Le test existant continue sans la fonctionnalité DEV. */ }
 }
@@ -92,14 +98,59 @@ function populateAudioExercises() {
   $('audio-exercise-picker').hidden = select.children.length < 2;
 }
 
+function configureQuestionLab() {
+  questionLabMode = true;
+  $('welcome-day').textContent = 'ESPACE DE TEST DEV';
+  $('welcome-title').textContent = 'Tester mes questions';
+  $('welcome-intro').textContent = 'Choisis un exercice et réponds comme un élève, avec une note vocale.';
+  $('welcome-description').textContent = 'Le texte hébreu s’affiche de droite à gauche. Tes brouillons restent dans Airtable pendant les essais.';
+  for (const id of ['intake-history', 'intake-prompt', 'intake-form', 'intake-complete', 'start-action', 'audio-catalog-status']) $(id).hidden = true;
+  $('question-lab-controls').hidden = false;
+  $('audio-demo-start').textContent = 'Commencer l’essai';
+  $('audio-demo-return').textContent = 'Choisir un autre exercice';
+}
+
+async function loadQuestionLab(importDrafts = true) {
+  if (!questionLabMode || questionLabBusy) return;
+  questionLabBusy = true;
+  const button = $('question-lab-reload'), status = $('question-lab-status');
+  button.disabled = true; $('audio-demo-start').disabled = true;
+  $('question-lab-errors').replaceChildren();
+  status.textContent = importDrafts ? 'Chargement de tes questions depuis Airtable…' : 'Ouverture de l’espace de test…';
+  try {
+    const response = await fetch('/api/question-lab', { method: importDrafts ? 'POST' : 'GET' });
+    const data = await response.json();
+    if (!response.ok) {
+      for (const message of data.errors || []) {
+        const item = document.createElement('li'); item.textContent = message; $('question-lab-errors').append(item);
+      }
+      throw new Error(data.error || 'Chargement indisponible. Réessaie.');
+    }
+    if (!Array.isArray(data.questions) || !data.version) throw new Error('Questions de test indisponibles.');
+    devAudioQuestions = data.questions; questionSetVersion = data.version;
+    const previous = $('audio-exercise').value;
+    populateAudioExercises();
+    const groups = [...new Set(devAudioQuestions.map(q => q.supportGroup).filter(Boolean))];
+    $('audio-exercise').value = groups.includes(previous) ? previous : groups[0] || '';
+    status.textContent = `${devAudioQuestions.length} questions prêtes à tester, dont ${data.draftQuestions || 0} en brouillon. Après une modification dans Airtable, recharge-les ici.`;
+  } catch (error) {
+    if (!importDrafts) { devAudioQuestions = []; populateAudioExercises(); }
+    status.textContent = error.message;
+  } finally {
+    questionLabBusy = false; button.disabled = false;
+    $('audio-demo-start').disabled = !devAudioQuestions.length;
+  }
+}
+
 function initializeAudioExperiment() {
+  $('question-lab-reload').addEventListener('click', () => loadQuestionLab(true));
   $('audio-demo-start').addEventListener('click', () => {
-    if (!audioCapability?.enabled) return;
-    stopAudio(); audioDemoMode = true;
+    if (!audioCapability?.enabled || questionLabMode && (questionLabBusy || !devAudioQuestions.length)) return;
     const selectedGroup = $('audio-exercise').value;
     audioExperimentQuestions = devAudioQuestions.length ? devAudioQuestions.filter(q => !selectedGroup || q.supportGroup === selectedGroup) : [audioCapability.demo];
     if (!audioExperimentQuestions.length) return;
-    engine = createQuizEngine(audioExperimentQuestions, audioExperimentConfiguration(audioExperimentQuestions));
+    stopAudio(); audioDemoMode = true;
+    engine = createQuizEngine(questionLabMode ? audioExperimentQuestions.map(q => ({ ...q, obligatoire: false })) : audioExperimentQuestions, audioExperimentConfiguration(audioExperimentQuestions));
     $('history').replaceChildren(); previousPassage = ''; previousMediaKey = '';
     $('welcome').hidden = true; $('results').hidden = true; $('quiz').hidden = false; $('active-question').hidden = false;
     $('audio-demo-return').hidden = false;

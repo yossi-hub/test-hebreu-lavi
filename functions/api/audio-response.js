@@ -1,6 +1,7 @@
 import { audioDevEnabled, audioDemo, publicAudioQuestion } from '../../lib/audio-dev.js';
 import { analyzeAudio, MAX_AUDIO_BYTES, saveAudioAttempt, uncertain } from '../../lib/audio-response.js';
 import { authorized, draft, published } from './question-set.js';
+import { labQuestionSet } from '../../lib/question-lab.js';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
@@ -18,7 +19,12 @@ async function questionFor(context, form) {
   if (id === audioDemo.id) return audioDemo;
   const preview = new URL(context.request.url).searchParams.get('preview') === '1';
   let snapshot;
-  if (preview) {
+  if (form.get('lab') === '1') {
+    const row = await labQuestionSet(context.env);
+    if (!row || row.version !== form.get('version')) throw new Error('Questions de test modifiées ou expirées. Recharge l’espace de test.');
+    const data = JSON.parse(row.snapshot);
+    snapshot = { questions: data.questions };
+  } else if (preview) {
     if (!authorized(context.request, context.env)) throw new Error('Aperçu non autorisé.');
     const result = await draft(context);
     if (result.errors.length) throw new Error('Brouillon invalide.');

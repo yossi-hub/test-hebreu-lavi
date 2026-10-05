@@ -17,12 +17,12 @@ export function authorized(request, env) {
   return difference === 0;
 }
 
-export async function draft(context, requireReady = false) {
+export async function draft(context, requireReady = false, { includeAudioDrafts = false } = {}) {
   const asset = await context.env.ASSETS.fetch(new URL('/questions.js', context.request.url));
   if (!asset.ok) throw new Error(`Questions de référence ${asset.status}`);
   const base = parseBaseScript(await asset.text());
   const records = await fetchAirtableQuestions(context.env);
-  return compileQuestionSet(base, records, { requireReady, audioEnabled: audioDevEnabled(context.request, context.env) });
+  return compileQuestionSet(base, records, { requireReady, audioEnabled: audioDevEnabled(context.request, context.env), includeAudioDrafts });
 }
 
 export async function published(env) {

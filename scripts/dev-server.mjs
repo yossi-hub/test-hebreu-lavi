@@ -7,6 +7,7 @@ import { onRequestGet as getAudio, onRequestPost as postAudio } from '../functio
 import { onRequestGet as getQuestions, onRequestPost as publishQuestions } from '../functions/api/question-set.js';
 import { onRequestGet as getQuestionAudio } from '../functions/api/question-audio.js';
 import { onRequestGet as getSync, onRequestPost as syncQuestions } from '../functions/api/question-sync.js';
+import { onRequestGet as getLab, onRequestPost as loadLab } from '../functions/api/question-lab.js';
 
 try { process.loadEnvFile('.env.local'); } catch (error) { if (error.code !== 'ENOENT') throw new Error('Impossible de charger la configuration locale.'); }
 const database = new DatabaseSync(':memory:');
@@ -57,6 +58,7 @@ const server = http.createServer(async (incoming, outgoing) => {
     const path = new URL(request.url).pathname;
     const handler = path === '/api/audio-response' ? (request.method === 'POST' ? postAudio : getAudio)
       : path === '/api/question-set' ? (request.method === 'POST' ? publishQuestions : getQuestions)
+      : path === '/api/question-lab' ? (request.method === 'POST' ? loadLab : getLab)
       : path === '/api/question-sync' ? (request.method === 'POST' ? syncQuestions : getSync)
       : path === '/api/question-audio' && request.method === 'GET' ? getQuestionAudio : null;
     const response = handler ? await handler({ request, env }) : path.startsWith('/api/')

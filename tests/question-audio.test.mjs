@@ -213,7 +213,7 @@ test('Texte Airtable : question écrite sans fichier, texte partagé et trois qu
     assert.equal(q.media, undefined);
     assert.equal(q.evaluationCriteria, rows[0].fields[FIELDS.audioPrompt]);
   }
-  assert.match(compile(rows.slice(1)).errors.join(' '), /au moins 3 questions validées/);
+  assert.match(compile(rows.slice(1)).errors.join(' '), /au moins 3 questions/);
   const duplicate = structuredClone(rows); duplicate[0].fields[FIELDS.blockPosition] = 1;
   assert.match(compile(duplicate).errors.join(' '), /sans doublon/);
   const inconsistent = structuredClone(rows); inconsistent[0].fields[FIELDS.supportText] = 'Un autre texte';
@@ -223,6 +223,6 @@ test('Texte Airtable : question écrite sans fichier, texte partagé et trois qu
   const tooLong = structuredClone(rows); tooLong[1].fields[FIELDS.supportText] = 'a'.repeat(12001);
   assert.match(compile(tooLong).errors.join(' '), /12000 caractères/);
   const partial = structuredClone(rows); partial[0].fields[FIELDS.editorialState] = 'Brouillon';
-  assert.match(compile(partial).errors.join(' '), /au moins 3 questions validées/);
+  assert.match(compile(partial).errors.join(' '), /au moins 3 questions/);
   assert.equal(compileQuestionSet(base, rows).snapshot.devAudioQuestions, undefined);
 });

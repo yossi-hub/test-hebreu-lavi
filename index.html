@@ -17,16 +17,22 @@
   <header class="brand"><span class="brand-mark" lang="he">ל</span><span>Professeur Lavi<span class="brand-detail">Évaluons votre hébreu 😊</span></span><span class="header-tag">Test Hébreu Lavi</span></header>
   <main>
     <section id="welcome" class="card welcome" aria-labelledby="welcome-title">
-      <p class="day-label">TA PREMIÈRE CONVERSATION</p>
+      <p id="welcome-day" class="day-label">TA PREMIÈRE CONVERSATION</p>
       <div class="bubble teacher welcome-content">
         <span class="sender">Professeur Lavi</span>
         <h1 id="welcome-title">Shalom ! <span lang="he" dir="rtl">שלום</span></h1>
-        <p>Je suis Lavi, ensemble, nous allons évaluer ton niveau d’hébreu.</p>
+        <p id="welcome-intro">Je suis Lavi, ensemble, nous allons évaluer ton niveau d’hébreu.</p>
         <p id="welcome-description"></p>
       </div>
       <p id="question-set-status" class="question-set-status" role="status" hidden></p>
       <div id="audio-dev-entry" class="welcome-action" hidden>
         <p id="audio-catalog-status" class="help"></p>
+        <div id="question-lab-controls" hidden>
+          <button id="question-lab-reload" class="primary" type="button">Charger mes questions depuis Airtable</button>
+          <p class="help">Les brouillons sont inclus dans cet espace de test. Modifie tes questions dans <a href="https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA" target="_blank" rel="noopener noreferrer">Airtable</a>, puis recharge-les ici.</p>
+          <p id="question-lab-status" role="status" aria-live="polite"></p>
+          <ul id="question-lab-errors" class="admin-errors" aria-label="Champs à corriger"></ul>
+        </div>
         <div id="audio-exercise-picker" hidden>
           <label for="audio-exercise">Exercice à tester</label>
           <select id="audio-exercise"><option value="">Toutes les questions</option></select>

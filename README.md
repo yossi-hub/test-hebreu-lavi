@@ -281,6 +281,12 @@ La table Questions test hébreu contient **Groupe support** (`fld43YCo7pAFy0KBR`
 
 **Ordre global** ordonne les exercices ; les positions dans le bloc ordonnent les questions du groupe, même si leurs ordres globaux sont intercalés avec d’autres exercices. Les brouillons restent exclus. L’intégration de nouvelles questions notées dans le parcours adaptatif demande toujours une mise à jour des règles de sélection.
 
+### Espace de test des brouillons
+
+Ouvrir **`/?lab=1`** sur DEV, ou cliquer sur **Tester mes questions, brouillons inclus** dans l’administration. **Charger mes questions depuis Airtable** prépare un essai des lignes **Audio DEV**, y compris les brouillons, sans changer leur état éditorial ni la publication active. Sélectionner un groupe, puis **Commencer l’essai**. Aucun profil ni bilan n’est demandé ; le bouton Passer permet de parcourir les questions.
+
+L’espace réutilise le texte hébreu de droite à gauche, l’enregistreur WhatsApp et l’évaluation vocale existants. Le serveur contrôle les groupes et les critères avant chaque chargement. L’aperçu expire après 30 minutes ; recharger depuis Airtable renouvelle les liens temporaires des fichiers de question. Les réponses utilisent la version de cet aperçu et des critères serveur. Les erreurs conservent l’essai précédent ; le chargement et la publication partagent un verrou pour éviter les requêtes répétées. L’ancienne route d’aperçu administrateur reste protégée.
+
 ### Activation sur le site DEV et essai iPhone
 
 Pour la mettre à disposition sur le site DEV, configurer **uniquement l’environnement Preview** de Cloudflare Pages : `QUIZ_AUDIO_ENABLED=true`, la clé serveur `OPENAI_API_KEY` existante, `QUIZ_ADMIN_TOKEN` et la liaison `QUIZ_DB` déjà utilisée. Déployer ensuite les changements sur la branche **DEV**. Le serveur vérifie à la fois le réglage, la branche `DEV` et l’hôte exact `dev.test-hebreu-lavi.pages.dev`. Le build écrit la branche Cloudflare dans `lib/deployment-context.js` pour les Functions ; cette métadonnée n’est pas servie au navigateur et ne dépend pas de la présence de `CF_PAGES_BRANCH` au runtime. La fonctionnalité reste désactivée sur `test.oulpanlavi.com`, même si le réglage est ajouté par erreur en production. Les autres hôtes de preview ne sont pas activés pour cette V1.

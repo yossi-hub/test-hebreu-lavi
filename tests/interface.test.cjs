@@ -197,3 +197,56 @@ assert.equal($('question-passage').children[0].textContent, 'Texte commun texte-
 $('audio-demo-return').events.click();
 `, context);
 console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');
+
+// L’espace de test importe les brouillons, présélectionne le texte et laisse parcourir les trois questions.
+(async () => {
+  const labQuestions = [1, 2, 3].map(position => ({
+    id: 'lab-' + position, type: 'audio_response', texte: 'לאן דנה נוסעת?',
+    supportGroup: 'mon-texte', supportText: 'דנה נוסעת לירושלים ביום ראשון.',
+    points: 1, choix: [], bonneReponse: null, obligatoire: true,
+  }));
+  let imported = 0;
+  context.fetch = async (url, options) => {
+    assert.equal(url, '/api/question-lab'); assert.equal(options.method, 'POST'); imported += 1;
+    return { ok: true, json: async () => ({ version: 'lab-version', questions: labQuestions, draftQuestions: 3 }) };
+  };
+  vm.runInContext('configureQuestionLab()', context);
+  assert.equal(elements['intake-form'].hidden, true);
+  assert.equal(elements['start-action'].hidden, true);
+  assert.equal(elements['question-lab-controls'].hidden, false);
+  assert.equal(elements['welcome-title'].textContent, 'Tester mes questions');
+  await vm.runInContext('loadQuestionLab(true)', context);
+  assert.equal(imported, 1);
+  assert.equal(elements['audio-exercise'].value, 'mon-texte');
+  assert.equal(elements['audio-demo-start'].disabled, false);
+  assert.match(elements['question-lab-status'].textContent, /3 en brouillon/);
+  vm.runInContext(`
+    assert.equal(questionSetVersion, 'lab-version');
+    $('audio-demo-start').events.click();
+    for (let position = 1; position <= 3; position++) {
+      assert.equal(engine.current().id, 'lab-' + position);
+      assert.equal($('question-title').dir, 'rtl');
+      assert.equal($('skip').hidden, false);
+      assert.equal($('audio-answer').hidden, false);
+      assert.equal($('written-form').hidden, true);
+      assert.equal($('support-progress').textContent, 'Texte · question ' + position + ' sur 3');
+      if (position === 1) {
+        assert.equal($('question-passage').children[0].dir, 'rtl');
+        assert.equal($('question-passage').children[0].textContent, 'דנה נוסעת לירושלים ביום ראשון.');
+      }
+      $('skip').events.click();
+    }
+    assert.equal(engine.state.finished, true);
+    assert.equal($('results').hidden, true);
+    $('audio-demo-return').events.click();
+    assert.equal($('welcome').hidden, false);
+    assert.equal($('intake-form').hidden, true);
+  `, context);
+  context.fetch = async () => ({ ok: false, json: async () => ({ error: 'Corrige le groupe.', errors: ['Au moins 3 questions.'] }) });
+  await vm.runInContext('loadQuestionLab(true)', context);
+  vm.runInContext("assert.equal(questionSetVersion, 'lab-version'); assert.equal(devAudioQuestions.length, 3)", context);
+  assert.equal(elements['audio-demo-start'].disabled, false);
+  assert.equal(elements['question-lab-errors'].children[0].textContent, 'Au moins 3 questions.');
+  assert.equal(elements['question-lab-status'].textContent, 'Corrige le groupe.');
+  console.log('OK : laboratoire DEV, import des brouillons, texte RTL, trois questions vocales et conservation après erreur.');
+})().catch(error => { console.error(error); process.exitCode = 1; });
