@@ -280,7 +280,11 @@ function renderMedia(question) {
     const error = document.createElement('p'); error.className = 'help'; error.hidden = true;
     error.textContent = 'Le fichier de la question est indisponible. Réessaie après son remplacement.';
     player.addEventListener('error', () => { error.hidden = false; });
-    context.append(playback.element, error); return;
+    const instruction = document.createElement('p'); instruction.className = 'description';
+    instruction.textContent = $('instruction').textContent;
+    instruction.hidden = !instruction.textContent;
+    $('instruction').hidden = true;
+    context.append(instruction, playback.element, error); return;
   }
   const url = new URL(question.media.url);
   if (url.protocol !== 'https:') return;
