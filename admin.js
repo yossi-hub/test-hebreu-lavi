@@ -19,7 +19,7 @@ fetch('/api/question-sync').then(async response => {
 
 function counts(summary) {
   const audio = (summary.audioQuestions || 0) + (summary.testAudioQuestions || 0);
-  const placement = summary.textMiniTests?.map(test => `Mini-test du niveau ${test.level} : ${test.total} questions, seuil ${test.minCorrect}/${test.total}. Niveau conseillé jusqu’à ${summary.placementMaxLevel}.`).join(" ") || "";
+  const placement = summary.textMiniTests?.map(test => `Mini-test du niveau ${test.level} : ${test.total} questions, seuil ${test.minCorrect}/${test.total}. Niveau conseillé jusqu’à ${summary.placementMaxLevel}`).join(" ") || "";
   return `${summary.testQuestions} questions du test, ${summary.profileQuestions} de profil et ${audio} question${audio > 1 ? 's' : ''} audio${placement ? '. ' + placement : ''}`;
 }
 

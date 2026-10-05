@@ -15,18 +15,19 @@
       <h1 id="admin-title">Actualiser les questions</h1>
       <p>Prépare tes questions dans <a href="https://airtable.com/appNbwmEyVQsXA25U/tblG7aWXPDkLCeNUz/viwBcFTDiLsQhYGOA" target="_blank" rel="noopener noreferrer">la table Airtable</a>, puis publie-les ici.</p>
       <ol class="admin-guide">
-        <li>Ajoute ou modifie une question avec <strong>Phase = Audio DEV</strong> et son texte dans <strong>Texte</strong>.</li>
+        <li>Pour un exercice d’entraînement hors parcours, utilise <strong>Phase = Audio DEV</strong> et son texte dans <strong>Texte</strong>.</li>
         <li>Pour une question écrite, laisse <strong>Fichier audio</strong> vide. Pour une question à écouter, dépose ton enregistrement. Renseigne <strong>Prompt d’évaluation</strong> pour chaque réponse vocale.</li>
         <li>Passe <strong>État éditorial</strong> à <strong>Validée</strong>, puis clique sur <strong>Actualiser depuis Airtable</strong>. Les brouillons audio restent dans Airtable.</li>
       </ol>
       <details class="admin-guide">
-        <summary>Ajouter un texte avec trois réponses vocales</summary>
+        <summary>Modifier le mini-test du texte (niveau 9)</summary>
+        <p>Le texte <strong dir="rtl" lang="he">שבת בעיר – תל אביב וירושלים</strong> fait partie du calcul du niveau. Toutes les questions du groupe sont posées dans le mini-test : actuellement 7 questions, avec un seuil de 6/7 pour conseiller le niveau 10.</p>
         <ol>
-          <li>Utilise les trois lignes <strong>dev-mon-texte-01-q1</strong>, <strong>q2</strong> et <strong>q3</strong>, déjà préparées en brouillon dans Airtable.</li>
-          <li>Colle le texte à lire dans <strong>Texte support</strong> sur la première ligne. Écris une question par ligne dans <strong>Texte</strong>.</li>
-          <li>Garde <strong>Groupe support = mon-texte-01</strong> sur les trois lignes et <strong>Position dans le bloc = 1, 2, 3</strong>.</li>
-          <li>Choisis <strong>Type = audio_response</strong> et <strong>Phase = Audio DEV</strong>. Renseigne un <strong>Prompt d’évaluation</strong> par question ; laisse le fichier audio vide.</li>
-          <li>Pour essayer tes questions, garde le statut <strong>Brouillon</strong> et ouvre <strong>Tester mes questions</strong> ci-dessous. Pour les inclure dans l’application, passe les trois lignes à <strong>Validée</strong>, puis actualise ici.</li>
+          <li>Garde <strong>Phase = Test</strong>, <strong>Bloc ID = niveau-9-mon-texte-01</strong>, <strong>Niveau = 9</strong> et <strong>Points = 1</strong>.</li>
+          <li>Utilise <strong>Groupe support = mon-texte-01</strong> pour chaque question et des <strong>positions continues 1, 2, 3…</strong>. Une nouvelle question ajoutée à ce groupe rejoint aussi le mini-test après actualisation.</li>
+          <li>Colle le texte commun dans <strong>Texte support</strong> sur une seule ligne. Écris une question par ligne dans <strong>Texte</strong>.</li>
+          <li>Pour une réponse vocale, utilise <strong>Type = audio_response</strong> et renseigne <strong>Prompt d’évaluation</strong>. Pour un QCM, utilise <strong>Type = qcm</strong>, <strong>Choix (JSON)</strong> et <strong>Bonne réponse (JSON)</strong>.</li>
+          <li>Le laboratoire ci-dessous inclut les brouillons. Pour publier dans le parcours réel, passe les questions à <strong>Validée</strong>, puis actualise ici.</li>
         </ol>
       </details>
       <p><a class="primary" href="/?lab=1">🧪 Tester mes questions, brouillons inclus</a></p>
