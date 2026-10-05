@@ -63,7 +63,7 @@ assert.deepEqual(eligible.map(item => item.id), ['recNearer', 'recA']);
 assert.equal(eligible[0].ecart_chapitre, 0);
 
 // The inclusive +/- 1 range applies to all target levels, including the extremes.
-for (const target of [1, 4, 9]) {
+for (const target of [1, 4, 9, 10]) {
   const withinRange = selectEligible([
     record('tooLow', { [fields.currentChapter]: target - 1.01 }),
     record('lowerBoundary', { [fields.currentChapter]: target - 1 }),
@@ -162,5 +162,18 @@ const noMatchResponse = await onRequestPost({
 assert.equal(noMatchResponse.status, 200);
 assert.deepEqual((await noMatchResponse.json()).recommendations, []);
 
+const levelTenResponse = await onRequestPost({
+  request: new Request('https://example.test/api/recommendations', { method: 'POST',
+    body: JSON.stringify({ niveau_lavi: 10 }) }),
+  env: { AIRTABLE_TOKEN: 'test-airtable', OPENAI_API_KEY: 'test-openai' },
+});
+assert.equal(levelTenResponse.status, 200);
+assert.equal((await levelTenResponse.json()).niveau_lavi, 10);
+const invalidLevelResponse = await onRequestPost({
+  request: new Request('https://example.test/api/recommendations', { method: 'POST',
+    body: JSON.stringify({ niveau_lavi: 11 }) }),
+  env: { AIRTABLE_TOKEN: 'test-airtable', OPENAI_API_KEY: 'test-openai' },
+});
+assert.equal(invalidLevelResponse.status, 400);
 globalThis.fetch = originalFetch;
 console.log('OK : normalisation Airtable, plage inclusive ±1, sélection IA, repli et absence de classe admissible.');

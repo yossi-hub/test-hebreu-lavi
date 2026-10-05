@@ -213,7 +213,7 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: 'Corps JSON invalide' }, 400);
   }
   const niveauLavi = Number(input.niveau_lavi);
-  if (!Number.isInteger(niveauLavi) || niveauLavi < 1 || niveauLavi > 9) {
+  if (!Number.isInteger(niveauLavi) || niveauLavi < 1 || niveauLavi > 10) {
     return json({ ok: false, error: 'Niveau invalide' }, 400);
   }
 

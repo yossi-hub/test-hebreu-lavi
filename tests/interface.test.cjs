@@ -307,5 +307,14 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
   assert.equal(elements['feedback'].textContent, '✅ Juste');
   assert.equal(elements['audio-debug'].hidden, false);
   assert.equal(elements['audio-debug-content'].children.length, 1);
+  const published = JSON.parse(vm.runInContext('JSON.stringify({questions, parcours, profileQuestions:intakeSteps})', context));
+  const levelNine = Array.from({length:7}, (_,index)=>({id:`published-reading-${index+1}`, texte:`Question ${index+1}`, type:'audio_response', niveau:9, points:1, choix:[], bonneReponse:null}));
+  published.questions.push(...levelNine);
+  published.parcours.adaptive.maxLevel = 9;
+  published.parcours.adaptive.tests[9] = {primary:levelNine.map(q=>q.id), minCorrect:6};
+  published.parcours.blocs.push({id:'published-reading', niveau:9, passage:'Texte commun', questions:levelNine.map(q=>q.id)});
+  context.fetch = async()=>({ok:true,json:async()=>({version:'level-nine',snapshot:published})});
+  await vm.runInContext('loadQuestionSet()', context);
+  vm.runInContext("assert.equal(parcours.adaptive.maxLevel,9); assert.equal(parcours.adaptive.tests[9].primary.length,7); assert.equal(engine.state.finished,false)", context);
   console.log('OK : laboratoire DEV, brouillons, texte RTL, transcription et JSON, distinction entre verdict modèle et décision retenue.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

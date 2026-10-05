@@ -479,7 +479,7 @@ function renderQuestion(scrollToTop = false) {
       : `Question ${adaptivePosition || levelQuestions.indexOf(q) + 1} sur ${adaptiveTotal || levelQuestions.length}`;
     $('progress').max = adaptiveTotal || levelQuestions.length;
     $('progress').value = adaptivePosition || levelQuestions.indexOf(q) + 1;
-    $('question-level').textContent = `Niveau ${q.niveau} sur 8`;
+    $('question-level').textContent = `Niveau ${q.niveau} sur ${parcours.adaptive.maxLevel}`;
     if (typeof audioDemoMode !== 'undefined' && audioDemoMode) {
       const number = audioExperimentQuestions.findIndex(item => item.id === q.id) + 1;
       $('progress-text').textContent = `${questionLabMode ? 'Question' : 'Question audio'} ${number} sur ${audioExperimentQuestions.length}`;
@@ -835,12 +835,8 @@ async function loadQuestionSet() {
     if (typeof devAudioQuestions !== 'undefined') devAudioQuestions = Array.isArray(snapshot.devAudioQuestions)
       ? snapshot.devAudioQuestions.filter(q => ['audio_response', 'qcm'].includes(q.type)) : [];
     questions.splice(0, questions.length, ...snapshot.questions);
-    const adaptiveConfiguration = parcours.adaptive;
     Object.assign(parcours, snapshot.parcours);
-    // La sélection des mini-tests est versionnée avec le code, tandis qu’Airtable
-    // fournit le contenu des questions. Cela permet d’améliorer le parcours sans
-    // attendre une nouvelle publication du contenu éditorial.
-    parcours.adaptive = adaptiveConfiguration;
+    // Le serveur publie ensemble les questions et leurs mini-tests complets.
     intakeSteps.splice(0, intakeSteps.length, ...snapshot.profileQuestions);
     if (!intakeSteps.some(step => step.key === 'format_cours')) intakeSteps.push(contactPreferenceStep);
     engine = createQuizEngine(questions, parcours);

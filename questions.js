@@ -2329,6 +2329,14 @@ const parcours = {
   "adaptive": {
     "minLevel": 1,
     "maxLevel": 8,
+    "textTests": [
+      {
+        "level": 9,
+        "supportGroup": "mon-texte-01",
+        "blockId": "niveau-9-mon-texte-01",
+        "minCorrectRatio": 0.8333333333333334
+      }
+    ],
     "selfAssessmentIds": [
       "283a501f-c840-4b74-9e88-545152769ef9",
       "547b1f37-9fc4-4f7b-8d47-73297c1dd2aa",

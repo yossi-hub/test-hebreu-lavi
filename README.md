@@ -42,7 +42,7 @@ Les questions en hébreu sont affichées de droite à gauche. Le point d’inter
 - Chaque texte ou vidéo sélectionné est suivi d’au moins trois questions consécutives sur ce même support. Une erreur ou une question passée n’interrompt pas le groupe. Le libellé « Vidéo/Texte · question 2 sur 3 » indique la progression dans le support ; la barre indique la progression globale du niveau. Le départage des niveaux 2 à 4 prolonge le même support.
 - Les questions facultatives peuvent être passées. Elles rapportent zéro point ; les règles Typeform peuvent compter une absence de réponse comme une erreur. Les champs obligatoires doivent être renseignés.
 - Le score final porte sur les questions effectivement présentées, y compris celles passées ; les niveaux non parcourus ne sont pas comptés au dénominateur.
-- Le niveau conseillé est le niveau d’inscription, compris entre 1 et 9 : dernier niveau validé + 1. Un utilisateur qui échoue au niveau 1 reçoit Lavi 1 ; celui qui valide le niveau 1 reçoit Lavi 2 ; celui qui valide le niveau 8 reçoit Lavi 9. Les questions évaluent les acquis des niveaux 1 à 8, sans mini-test de niveau 9.
+- Le niveau conseillé est le niveau d’inscription : dernier niveau validé + 1, jusqu’à 10 avec le mini-test du niveau 9 publié. Un utilisateur qui échoue au niveau 1 reçoit Lavi 1 ; celui qui valide le niveau 1 reçoit Lavi 2 ; celui qui valide le niveau 8 reçoit Lavi 9. La banque publiée ajoute le mini-test du niveau 9 décrit ci-dessous ; la banque embarquée de secours conserve les niveaux 1 à 8.
 - Recommencer remet à zéro réponses, score, variables et historique du test. Le profil reste en mémoire.
 
 ### Adaptations documentées
@@ -339,3 +339,12 @@ Les nouveaux QCM avec un Groupe support et un ID distinct du parcours adaptatif 
 
 
 La prise de contact demande la préférence présentiel/distanciel après les coordonnées, avec deux boutons. Cette préférence ne participe pas au score : `format_cours` est conservé à la fin du test dans `test_contact_preferences`, lié à la participation, et transmis au webhook Make existant, comme autorisé pour cette préférence. Aucun attribut Brevo supplémentaire n’est créé. La question Airtable historique `01bd29a5-dc50-4012-959f-d415559996c6` est reconnue en Phase Profil, position 4 ; le profil reste compatible avec les anciennes publications à trois coordonnées.
+
+
+### Mini-test du texte et niveau conseille 10
+
+Le groupe Airtable `mon-texte-01` rejoint le parcours adaptatif au niveau evalue 9. Toutes ses questions actives sont posees consecutivement, selon Position dans le bloc : aucun arret anticipe, meme si le seuil est deja atteint ou devenu impossible. Les quatre reponses audio et les trois QCM actuels comptent chacun pour un point. Le seuil reprend la proportion 5/6 des niveaux superieurs, arrondie au nombre entier superieur : 6/7 valide le niveau 9 et conseille une inscription au niveau 10 ; un echec apres validation du niveau 8 conseille 9.
+
+Dans Airtable, utiliser `Phase = Test`, `Bloc ID = niveau-9-mon-texte-01`, `Niveau = 9`, `Points = 1`, `Groupe support = mon-texte-01`, des positions continues 1 a N et un etat publiable. Le texte support commun peut rester sur une seule ligne. Toute nouvelle question active de ce groupe rejoint le mini-test a la prochaine actualisation ; le seuil s'adapte (par exemple 7/8). Un groupe incomplet, des positions manquantes, des textes contradictoires ou un brouillon bloquent la publication. Le laboratoire continue de charger ce meme groupe, brouillons inclus.
+
+Les questions et la configuration adaptative sont desormais publiees ensemble : le navigateur adopte le mini-test de la banque publiee. Une ancienne publication ou le secours embarque reste utilisable avant la synchronisation, sans demander des identifiants de questions absents. Les recommandations de cours acceptent aussi le niveau 10. Tests ajoutes : seuils 5/7 et 6/7, les sept questions malgre un succes ou un echec precoce, toutes les routes d'orientation et niveaux d'inscription 1 a 10, nouvelle huitieme question, publication/lab et confidentialite des criteres audio.
