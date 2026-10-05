@@ -166,4 +166,9 @@ footer { text-align: center; color: var(--muted); font-size: 14px; padding: 22px
 @media (prefers-reduced-motion: reduce) { .voice-recording-dot, .voice-recording .voice-waveform i { animation: none; } }
 .audio-debug { margin: 1rem 0; padding: 1rem; background: #f3f5f4; border-radius: .8rem; }
 .audio-debug pre { white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; font-size: .85rem; }
-.audio-debug summary { cursor: pointer; }
+.audio-debug summary { cursor: pointer; font-weight: 600; }
+.audio-attempt { margin-top: 16px; padding: 16px; border: 1px solid #d4ddd7; border-radius: 12px; background: white; }
+.audio-attempt h3 { font-size: 16px; margin: 0; }
+.audio-attempt h4 { margin: 16px 0 6px; }
+.audio-transcript { white-space: pre-wrap; text-align: right; line-height: 1.7; }
+.audio-attempt pre { padding: 12px; background: #f3f5f4; border-radius: 8px; }

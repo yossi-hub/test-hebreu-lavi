@@ -16,7 +16,7 @@ export async function onRequestGet({ request, env }) {
 
 async function questionFor(context, form) {
   const id = form.get('questionId');
-  if (id === audioDemo.id) return audioDemo;
+  if (id === audioDemo.id && form.get('lab') !== '1') return audioDemo;
   const preview = new URL(context.request.url).searchParams.get('preview') === '1';
   let snapshot;
   if (form.get('lab') === '1') {
@@ -44,7 +44,7 @@ export async function onRequestPost(context) {
   if (!audioDevEnabled(request, env)) return json({ enabled: false }, 404);
   const origin = request.headers.get('Origin');
   if (origin && origin !== new URL(request.url).origin) return json({ status: 'uncertain', confidence: 0 }, 403);
-  let question, result;
+  let question, result, labDiagnostics = false;
   try {
     if (!request.headers.get('Content-Type')?.startsWith('multipart/form-data')) throw new Error('Formulaire audio requis.');
     const size = Number(request.headers.get('Content-Length'));
@@ -63,6 +63,7 @@ export async function onRequestPost(context) {
     }
     const form = await new Response(new Blob(chunks), { headers: { 'Content-Type': request.headers.get('Content-Type') } }).formData();
     question = await questionFor(context, form);
+    labDiagnostics = form.get('lab') === '1' && origin === new URL(request.url).origin;
     const audio = form.get('audio');
     if (!audio || typeof audio.arrayBuffer !== 'function' || audio.type !== 'audio/wav' || audio.size > MAX_AUDIO_BYTES) throw new Error('Fichier WAV requis.');
     result = await analyzeAudio(env, question, audio);
@@ -72,8 +73,9 @@ export async function onRequestPost(context) {
     ...result, answeredAt: new Date().toISOString(),
   };
   const stored = question ? await saveAudioAttempt(env, attempt) : false;
-  // Le navigateur de l’élève reçoit uniquement le verdict ; le texte transcrit
-  // et la raison sont réservés à l’administration DEV.
+  // Le laboratoire reçoit seulement les détails de CET enregistrement,
+  // après contrôle de sa question/version et de son origine. Aucun historique D1.
+  // Le parcours élève conserve la réponse limitée au verdict.
   return json({ status: result.status, confidence: result.confidence,
-    ...(debugAllowed(request, env) ? { debug: { ...attempt, stored } } : {}) });
+    ...(labDiagnostics || debugAllowed(request, env) ? { debug: { ...attempt, stored } } : {}) });
 }

@@ -36,15 +36,11 @@ async function submitAudio(blob, question) {
     if (!response.ok) throw new Error('Analyse indisponible.');
     const data = await response.json();
     if (currentEngine !== engine || engine.current()?.id !== question.id) return { status: 'uncertain' };
-    if (audioCapability.debug && data.debug) {
+    if ((audioCapability.debug || questionLabMode) && data.debug) {
       audioAttempts.push(data.debug);
       if (audioAttempts.length > 50) audioAttempts.shift();
-      $('audio-debug-content').textContent = audioAttempts.map(attempt => [
-        `Question : ${attempt.question}`, `Transcription : ${attempt.transcription}`,
-        `Décision : ${attempt.status}`, `Confidence : ${attempt.confidence}`, `Reason : ${attempt.reason}`,
-        `Date : ${attempt.answeredAt}`, `Stockage D1 : ${attempt.stored ? 'oui' : 'non (mémoire de cette page)'}`,
-      ].join('\n')).join('\n\n');
-      $('audio-debug').hidden = false;
+      renderAudioAttempts();
+      $('audio-debug').open = true;
     }
     if (['correct', 'incorrect'].includes(data.status) && typeof data.confidence === 'number'
       && data.confidence >= 0.75 && data.confidence <= 1) submitAnswer({ status: data.status, confidence: data.confidence, duration: (blob.size - 44) / 32000 });
@@ -71,6 +67,34 @@ async function loadAudioCapability() {
       }
     }
   } catch { /* Le test existant continue sans la fonctionnalité DEV. */ }
+}
+
+function renderAudioAttempts() {
+  const content = $('audio-debug-content'); content.replaceChildren();
+  if (!audioAttempts.length) {
+    const help = document.createElement('p');
+    help.textContent = 'Après l’envoi de ta réponse vocale, tu verras ici la transcription en hébreu, le résultat JSON de l’évaluateur et la décision retenue.';
+    content.append(help);
+  }
+  for (const attempt of [...audioAttempts].reverse()) {
+    const card = document.createElement('article'); card.className = 'audio-attempt';
+    const question = document.createElement('h3'); question.textContent = attempt.question;
+    question.dir = /[\u0590-\u05ff]/.test(attempt.question) ? 'rtl' : 'ltr';
+    const date = document.createElement('p'); date.className = 'help';
+    date.textContent = new Date(attempt.answeredAt).toLocaleString('fr-FR');
+    const transcriptLabel = document.createElement('h4'); transcriptLabel.textContent = 'Transcription';
+    const transcript = document.createElement('p'); transcript.className = 'audio-transcript'; transcript.dir = 'rtl'; transcript.lang = 'he';
+    transcript.textContent = attempt.transcription || 'Aucune transcription exploitable.';
+    const decision = document.createElement('p');
+    const label = attempt.status === 'correct' ? 'Réponse juste · 1 point' : attempt.status === 'incorrect' ? 'Réponse incorrecte · 0 point' : 'À réessayer · Aucun point attribué';
+    decision.textContent = `Décision retenue : ${label}. Certitude : ${Math.round(attempt.confidence * 100)} %.`;
+    const outputLabel = document.createElement('h4'); outputLabel.textContent = 'Sortie du prompt · JSON';
+    const output = document.createElement('pre');
+    output.textContent = attempt.evaluationOutput != null ? JSON.stringify(attempt.evaluationOutput, null, 2) : 'L’évaluateur n’a pas renvoyé de résultat JSON.';
+    const reason = document.createElement('p'); reason.textContent = `Justification : ${attempt.reason}`;
+    card.append(question, date, transcriptLabel, transcript, decision, outputLabel, output, reason); content.append(card);
+  }
+  $('audio-debug').hidden = false;
 }
 
 function audioExperimentConfiguration(questionList) {
@@ -154,6 +178,7 @@ function initializeAudioExperiment() {
     $('history').replaceChildren(); previousPassage = ''; previousMediaKey = '';
     $('welcome').hidden = true; $('results').hidden = true; $('quiz').hidden = false; $('active-question').hidden = false;
     $('audio-demo-return').hidden = false;
+    if (questionLabMode) { renderAudioAttempts(); $('audio-debug').open = true; }
     renderQuestion();
   });
   $('audio-demo-return').addEventListener('click', () => {

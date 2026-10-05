@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { FIELDS, parseBaseScript, compileQuestionSet } from '../lib/question-set.js';
 import { onRequestGet, onRequestPost } from '../functions/api/question-lab.js';
-import { onRequestPost as answerAudio } from '../functions/api/audio-response.js';
+import { onRequestPost as answerAudio, onRequestGet as getAudioCapability } from '../functions/api/audio-response.js';
 const require = createRequire(import.meta.url);
 const { encodeWave } = require('../audio-recorder.js');
 const origin = 'https://dev.test-hebreu-lavi.pages.dev';
@@ -153,9 +153,20 @@ test('Une réponse vocale utilise le texte et les critères du brouillon serveur
   }, async () => {
     try {
       const lab = await (await onRequestPost({ request: request(), env })).json();
-      assert.deepEqual(await (await answerAudio({ request: answer(lab.version), env })).json(), { status: 'correct', confidence: 0.96 });
+      const response = await (await answerAudio({ request: answer(lab.version), env })).json();
+      assert.equal(response.status, 'correct'); assert.equal(response.confidence, 0.96);
+      assert.equal(response.debug.transcription, 'לירושלים');
+      assert.deepEqual(response.debug.evaluationOutput, { status: 'correct', confidence: 0.96, reason: 'Bonne destination.' });
+      assert.equal(response.debug.question, 'לאן דנה נוסעת?'); assert.equal(response.debug.stored, true);
+      assert.equal(response.debug.evaluationCriteria, undefined);
+      const publicCapability = await (await getAudioCapability({ request: new Request(`${origin}/api/audio-response`), env })).json();
+      assert.equal(publicCapability.debug, false);
+
       assert.equal(calls, 2);
-      assert.equal((await (await answerAudio({ request: answer('stale-version'), env })).json()).status, 'uncertain');
+      const stale = await (await answerAudio({ request: answer('stale-version'), env })).json();
+      assert.equal(stale.status, 'uncertain'); assert.equal(stale.debug, undefined);
+      const crossOrigin = answer(lab.version); crossOrigin.headers.set('Origin', 'https://example.com');
+      assert.equal((await answerAudio({ request: crossOrigin, env })).status, 403);
       db.exec('UPDATE quiz_question_lab SET expires_at = 0');
       assert.equal((await (await answerAudio({ request: answer(lab.version), env })).json()).status, 'uncertain');
       assert.equal(calls, 2);

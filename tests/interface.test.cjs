@@ -21,7 +21,7 @@ assert.ok(html.includes('Je suis Lavi, ensemble, nous allons évaluer ton niveau
 const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(ids).size,ids.length);
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
-const context=vm.createContext({assert,URL,URLSearchParams,fetch:async()=>({ok:true,json:async()=>({success:true})}),document:{
+const context=vm.createContext({assert,URL,URLSearchParams,FormData,Blob,AbortController,setTimeout,clearTimeout,fetch:async()=>({ok:true,json:async()=>({success:true})}),document:{
   getElementById(id) {assert.ok(elements[id],`Identifiant absent : ${id}`);return elements[id];},
   createElement(tag) {const e=new Element(tag);created.push(e);return e;},
 }});
@@ -248,5 +248,29 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
   assert.equal(elements['audio-demo-start'].disabled, false);
   assert.equal(elements['question-lab-errors'].children[0].textContent, 'Au moins 3 questions.');
   assert.equal(elements['question-lab-status'].textContent, 'Corrige le groupe.');
-  console.log('OK : laboratoire DEV, import des brouillons, texte RTL, trois questions vocales et conservation après erreur.');
+  vm.runInContext("$('audio-demo-start').events.click()", context);
+  assert.equal(elements['audio-debug'].hidden, false); assert.equal(elements['audio-debug'].open, true);
+  assert.match(elements['audio-debug-content'].children[0].textContent, /transcription/);
+  let audioCalls = 0;
+  context.fetch = async (url, options) => {
+    assert.equal(url, '/api/audio-response'); assert.equal(options.body.get('lab'), '1');
+    assert.equal(options.body.get('version'), 'lab-version'); audioCalls += 1;
+    const status = audioCalls === 1 ? 'uncertain' : 'correct';
+    return { ok: true, json: async () => ({ status, confidence: audioCalls === 1 ? 0.5 : 0.96,
+      debug: { question: 'לאן דנה נוסעת?', transcription: 'לירושלים', status, confidence: audioCalls === 1 ? 0.5 : 0.96,
+        reason: 'Bonne destination.', answeredAt: '2026-10-05T08:00:00Z',
+        evaluationOutput: { status: 'correct', confidence: audioCalls === 1 ? 0.5 : 0.96, reason: 'Bonne destination.' } } }) };
+  };
+  await vm.runInContext('submitAudio(new Blob([new Uint8Array(100)], {type:"audio/wav"}), engine.current())', context);
+  vm.runInContext("assert.equal(engine.current().id, 'lab-1'); assert.equal(engine.state.attempted, 0)", context);
+  const firstAttempt = elements['audio-debug-content'].children[0];
+  assert.equal(firstAttempt.children[3].textContent, 'לירושלים'); assert.equal(firstAttempt.children[3].dir, 'rtl');
+  assert.match(firstAttempt.children[4].textContent, /Aucun point attribué/);
+  assert.equal(JSON.parse(firstAttempt.children[6].textContent).status, 'correct');
+  await vm.runInContext('submitAudio(new Blob([new Uint8Array(100)], {type:"audio/wav"}), engine.current())', context);
+  vm.runInContext("assert.equal(engine.current().id, 'lab-2')", context);
+  assert.equal(elements['audio-debug-content'].children.length, 2);
+  assert.match(elements['audio-debug-content'].children[0].children[4].textContent, /1 point/);
+  assert.equal(elements['audio-debug'].hidden, false);
+  console.log('OK : laboratoire DEV, brouillons, texte RTL, transcription et JSON, distinction entre verdict modèle et décision retenue.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
