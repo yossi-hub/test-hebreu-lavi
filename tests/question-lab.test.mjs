@@ -238,3 +238,20 @@ test('La production exige une activation explicite et la branche main ; le lab r
     } finally { db.close(); }
   });
 });
+
+
+test('La question de préférence importée peut rejoindre le profil sans changer le test de niveau', () => {
+  const { db, records } = fixture();
+  try {
+    const before = compileQuestionSet(base, records, { audioEnabled: true });
+    records.push({ id: 'contact-preference', fields: {
+      [FIELDS.id]: '01bd29a5-dc50-4012-959f-d415559996c6', [FIELDS.text]: 'Présentiel ou distanciel ?',
+      [FIELDS.type]: 'text', [FIELDS.phase]: 'Profil', [FIELDS.editorialState]: 'Validée', [FIELDS.blockPosition]: 4,
+    } });
+    const after = compileQuestionSet(base, records, { audioEnabled: true, requireReady: true });
+    assert.deepEqual(after.errors, []);
+    assert.deepEqual(after.snapshot.questions, before.snapshot.questions);
+    assert.equal(after.snapshot.profileQuestions.length, 4);
+    assert.equal(after.snapshot.profileQuestions[3].key, 'format_cours');
+  } finally { db.close(); }
+});

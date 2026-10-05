@@ -249,3 +249,23 @@ test('Brevo sync continues without D1 and when its status storage fails', async 
   }
   assert.equal(calls, 2);
 });
+
+
+test('La préférence de cours est conservée sans score et ne quitte pas les résultats de l’application', async t => {
+  const db = database(); t.after(() => db.sqlite.close());
+  const sent = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => { sent.push(JSON.parse(options.body)); return new Response('Accepted'); });
+  const env = { QUIZ_DB: db.binding, MAKE_WEBHOOK_URL: 'https://make.test/webhook' };
+  // Une participation ancienne sans préférence reste compatible.
+  assert.equal((await onRequestPost({ request: submission(participant), env })).status, 200);
+  for (const format_cours of ['presentiel', 'distanciel']) {
+    assert.equal((await onRequestPost({ request: submission({ ...participant, format_cours }), env })).status, 200);
+    const payload = sent.at(-1);
+    assert.equal(payload.format_cours, undefined);
+    assert.equal(payload.score, participant.score);
+    assert.equal(payload.niveau_lavi, participant.niveau_lavi);
+    assert.equal(db.sqlite.prepare('SELECT format_cours FROM test_contact_preferences WHERE participation_id = ?').get(payload.participation_id).format_cours, format_cours);
+  }
+  assert.equal((await onRequestPost({ request: submission({ ...participant, format_cours: 'autre' }), env })).status, 400);
+  assert.equal(sent.length, 3);
+});

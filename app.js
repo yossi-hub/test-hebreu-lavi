@@ -1,11 +1,15 @@
 const $ = (id) => document.getElementById(id);
 let engine = createQuizEngine(questions, parcours);
 // Données conservées uniquement en mémoire : un rechargement les efface.
-const userProfile = { prenom: '', nom: '', email: '', telephone: '' };
+const userProfile = { prenom: '', nom: '', email: '', telephone: '', format_cours: '' };
+const contactPreferenceStep = {
+  key: 'format_cours', label: 'Préférence de cours', question: 'D’ordre général, préfères-tu apprendre l’hébreu en présentiel ou en distanciel ?', type: 'text',
+};
 const intakeSteps = [
   { key: 'identite', label: 'Prénom et nom', question: 'Donne-moi ton prénom et ton nom, s’il te plaît.', type: 'text', autocomplete: 'name' },
   { key: 'email', label: 'Email', question: 'Quelle est ton adresse email ?', type: 'email', autocomplete: 'email' },
   { key: 'telephone', label: 'Téléphone', question: 'Quel est ton numéro de téléphone avec l’indicatif du pays ? Par exemple : +33 6 12 34 56 78 (France) ou +972 50 123 4567 (Israël).', type: 'tel', autocomplete: 'tel' },
+  contactPreferenceStep,
 ];
 let intakeIndex = 0;
 
@@ -30,6 +34,16 @@ function intakeMessage(text, student = false) {
 function renderIntakeStep(focus = true) {
   const step = intakeSteps[intakeIndex];
   const conversationalInput = true;
+  const choiceStep = step.key === 'format_cours';
+  $('intake-form').hidden = choiceStep;
+  const choices = $('intake-choices'); choices.replaceChildren(); choices.hidden = !choiceStep;
+  if (choiceStep) {
+    for (const [value, label] of [['presentiel', 'En présentiel'], ['distanciel', 'En distanciel']]) {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'choice'; button.textContent = label;
+      button.addEventListener('click', () => { $('intake-answer').value = value; submitIntake({ preventDefault() {} }); });
+      choices.append(button);
+    }
+  }
   $('intake-question').textContent = step.question;
   $('intake-label').textContent = step.label;
   $('intake-form').className = conversationalInput ? 'composer chat-input-only' : 'composer';
@@ -45,11 +59,11 @@ function renderIntakeStep(focus = true) {
   submit.setAttribute('aria-label', conversationalInput ? `Envoyer ton ${step.label.toLowerCase()}` : 'Envoyer');
   submit.textContent = conversationalInput ? '➤' : 'Envoyer →';
   $('intake-error').hidden = true;
-  if (focus) input.focus();
+  if (focus) { if (choiceStep) choices.children[0].focus(); else input.focus(); }
   scrollConversationToBottom();
 }
 
-$('intake-form').addEventListener('submit', (event) => {
+function submitIntake(event) {
   event.preventDefault();
   if (intakeIndex >= intakeSteps.length) return;
   const step = intakeSteps[intakeIndex];
@@ -69,6 +83,7 @@ $('intake-form').addEventListener('submit', (event) => {
       error = 'Ajoute l’indicatif de ton pays, par exemple +33 6 12 34 56 78 ou +972 50 123 4567.';
     } else value = normalized;
   }
+  if (step.key === 'format_cours' && !['presentiel', 'distanciel'].includes(value)) error = 'Choisis présentiel ou distanciel.';
   if (error) {
     $('intake-error').textContent = error;
     $('intake-error').hidden = false;
@@ -84,22 +99,22 @@ $('intake-form').addEventListener('submit', (event) => {
     userProfile[step.key] = value;
   }
   intakeMessage(step.question);
-  intakeMessage(value, true);
+  intakeMessage(step.key === 'format_cours' ? (value === 'presentiel' ? 'En présentiel' : 'En distanciel') : value, true);
   if (step.key === 'identite') intakeMessage(`Enchanté ${userProfile.prenom}`);
   intakeIndex += 1;
   if (intakeIndex < intakeSteps.length) {
     renderIntakeStep();
   } else {
     $('intake-prompt').hidden = true;
-    $('intake-form').hidden = true;
+    $('intake-form').hidden = true; $('intake-choices').hidden = true;
     $('intake-confirmation').textContent = `Parfait, merci ${userProfile.prenom}. On peut commencer le test 😊`;
     $('intake-complete').hidden = false;
     $('start-action').hidden = false;
     $('start').focus({ preventScroll: true });
     scrollConversationToBottom();
   }
-});
-
+}
+$('intake-form').addEventListener('submit', submitIntake);
 
 let displayedChoices = [];
 let selection = new Set();
@@ -673,6 +688,7 @@ async function sendResult(state) {
         nom: userProfile.nom,
         email: userProfile.email,
         telephone: userProfile.telephone,
+        format_cours: userProfile.format_cours,
         niveau_lavi: state.variables.niveau_lavi,
         score: state.score,
         points_possibles: state.possible,
@@ -826,6 +842,7 @@ async function loadQuestionSet() {
     // attendre une nouvelle publication du contenu éditorial.
     parcours.adaptive = adaptiveConfiguration;
     intakeSteps.splice(0, intakeSteps.length, ...snapshot.profileQuestions);
+    if (!intakeSteps.some(step => step.key === 'format_cours')) intakeSteps.push(contactPreferenceStep);
     engine = createQuizEngine(questions, parcours);
     renderIntakeStep(false);
     if (previewMode) {
