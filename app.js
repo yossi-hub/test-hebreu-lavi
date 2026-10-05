@@ -435,7 +435,7 @@ function renderQuestion(scrollToTop = false) {
   $('composer').classList.toggle('text-composer', q.type === 'text');
   $('composer').classList.toggle('voice-composer', q.type === 'audio_response');
   $('confirm-choices').hidden = !q.multiple || q.reponseConversationnelle;
-  $('skip').hidden = q.obligatoire && engine.state.mode !== 'test';
+  $('skip').hidden = (typeof questionLabMode !== 'undefined' && questionLabMode) || q.obligatoire && engine.state.mode !== 'test';
   $('written-form').hidden = q.type !== 'text';
   const formattedQuestion = formatQuestionText(q.texte);
   $('question-title').textContent = formattedQuestion.text;

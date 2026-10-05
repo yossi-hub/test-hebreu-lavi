@@ -226,7 +226,7 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
     for (let position = 1; position <= 3; position++) {
       assert.equal(engine.current().id, 'lab-' + position);
       assert.equal($('question-title').dir, 'rtl');
-      assert.equal($('skip').hidden, false);
+      assert.equal($('skip').hidden, true);
       assert.equal($('audio-answer').hidden, false);
       assert.equal($('written-form').hidden, true);
       assert.equal($('support-progress').textContent, 'Texte · question ' + position + ' sur 3');
@@ -234,7 +234,7 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
         assert.equal($('question-passage').children[0].dir, 'rtl');
         assert.equal($('question-passage').children[0].textContent, 'דנה נוסעת לירושלים ביום ראשון.');
       }
-      $('skip').events.click();
+      submitAnswer({ status: 'correct', confidence: 0.96, duration: 2 });
     }
     assert.equal(engine.state.finished, true);
     assert.equal($('results').hidden, true);
@@ -249,8 +249,8 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
   assert.equal(elements['question-lab-errors'].children[0].textContent, 'Au moins 3 questions.');
   assert.equal(elements['question-lab-status'].textContent, 'Corrige le groupe.');
   vm.runInContext("$('audio-demo-start').events.click()", context);
-  assert.equal(elements['audio-debug'].hidden, false); assert.equal(elements['audio-debug'].open, true);
-  assert.match(elements['audio-debug-content'].children[0].textContent, /transcription/);
+  assert.equal(elements['audio-debug'].hidden, true);
+  assert.equal(elements['audio-debug-content'].children.length, 0);
   let audioCalls = 0;
   context.fetch = async (url, options) => {
     assert.equal(url, '/api/audio-response'); assert.equal(options.body.get('lab'), '1');

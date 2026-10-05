@@ -71,11 +71,7 @@ async function loadAudioCapability() {
 
 function renderAudioAttempts() {
   const content = $('audio-debug-content'); content.replaceChildren();
-  if (!audioAttempts.length) {
-    const help = document.createElement('p');
-    help.textContent = 'Après l’envoi de ta réponse vocale, tu verras ici la transcription en hébreu, le résultat JSON de l’évaluateur et la décision retenue.';
-    content.append(help);
-  }
+  if (!audioAttempts.length) { $('audio-debug').hidden = true; return; }
   for (const attempt of [...audioAttempts].reverse()) {
     const card = document.createElement('article'); card.className = 'audio-attempt';
     const question = document.createElement('h3'); question.textContent = attempt.question;
@@ -174,11 +170,11 @@ function initializeAudioExperiment() {
     audioExperimentQuestions = devAudioQuestions.length ? devAudioQuestions.filter(q => !selectedGroup || q.supportGroup === selectedGroup) : [audioCapability.demo];
     if (!audioExperimentQuestions.length) return;
     stopAudio(); audioDemoMode = true;
-    engine = createQuizEngine(questionLabMode ? audioExperimentQuestions.map(q => ({ ...q, obligatoire: false })) : audioExperimentQuestions, audioExperimentConfiguration(audioExperimentQuestions));
+    engine = createQuizEngine(audioExperimentQuestions, audioExperimentConfiguration(audioExperimentQuestions));
     $('history').replaceChildren(); previousPassage = ''; previousMediaKey = '';
     $('welcome').hidden = true; $('results').hidden = true; $('quiz').hidden = false; $('active-question').hidden = false;
     $('audio-demo-return').hidden = false;
-    if (questionLabMode) { renderAudioAttempts(); $('audio-debug').open = true; }
+    if (questionLabMode) renderAudioAttempts();
     renderQuestion();
   });
   $('audio-demo-return').addEventListener('click', () => {
