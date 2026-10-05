@@ -607,6 +607,8 @@ function archiveExchange(includeFeedback = true) {
   if (!$('passage-message').hidden) messages.push($('passage-message'));
   messages.push($('active-question').querySelector('.question-message'), $('student-message'));
   if (includeFeedback) messages.push($('feedback'));
+  const hasAudioDetails = includeFeedback && !$('audio-debug').hidden;
+  if (hasAudioDetails) messages.push($('audio-debug'));
   for (const source of messages) {
     const copy = source.cloneNode(true);
     copy.removeAttribute('id'); copy.removeAttribute('role'); copy.removeAttribute('aria-live');
@@ -624,6 +626,7 @@ function archiveExchange(includeFeedback = true) {
     });
     $('history').append(copy);
   }
+  if (hasAudioDetails) { $('audio-debug').hidden = true; $('audio-debug-content').replaceChildren(); }
 }
 
 function unscoredFeedback(question, value) {

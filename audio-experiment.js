@@ -71,8 +71,9 @@ async function loadAudioCapability() {
 
 function renderAudioAttempts() {
   const content = $('audio-debug-content'); content.replaceChildren();
-  if (!audioAttempts.length) { $('audio-debug').hidden = true; return; }
-  for (const attempt of [...audioAttempts].reverse()) {
+  const currentAttempts = audioAttempts.filter(attempt => attempt.questionId === engine.current()?.id);
+  if (!currentAttempts.length) { $('audio-debug').hidden = true; return; }
+  for (const attempt of currentAttempts) {
     const card = document.createElement('article'); card.className = 'audio-attempt';
     const question = document.createElement('h3'); question.textContent = attempt.question;
     question.dir = /[\u0590-\u05ff]/.test(attempt.question) ? 'rtl' : 'ltr';
@@ -169,7 +170,7 @@ function initializeAudioExperiment() {
     const selectedGroup = $('audio-exercise').value;
     audioExperimentQuestions = devAudioQuestions.length ? devAudioQuestions.filter(q => !selectedGroup || q.supportGroup === selectedGroup) : [audioCapability.demo];
     if (!audioExperimentQuestions.length) return;
-    stopAudio(); audioDemoMode = true;
+    stopAudio(); audioDemoMode = true; audioAttempts.length = 0;
     engine = createQuizEngine(audioExperimentQuestions, audioExperimentConfiguration(audioExperimentQuestions));
     $('history').replaceChildren(); previousPassage = ''; previousMediaKey = '';
     $('welcome').hidden = true; $('results').hidden = true; $('quiz').hidden = false; $('active-question').hidden = false;

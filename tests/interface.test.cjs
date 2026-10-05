@@ -12,7 +12,13 @@ class Element {
   removeAttribute(key) {delete this.attributes[key];}
   querySelector() {return new Element();}
   querySelectorAll() {return [];}
-  cloneNode() {return new Element();}
+  cloneNode(deep=false) {
+    const copy = new Element(this.tag);
+    for (const key of ['className', 'textContent', 'hidden', 'open', 'dir', 'lang']) copy[key] = this[key];
+    copy.attributes = {...this.attributes};
+    if (deep) copy.children = this.children.map(child => child.cloneNode(true));
+    return copy;
+  }
   focus() {}
   remove() {}
 }
@@ -251,15 +257,17 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
   vm.runInContext("$('audio-demo-start').events.click()", context);
   assert.equal(elements['audio-debug'].hidden, true);
   assert.equal(elements['audio-debug-content'].children.length, 0);
+  elements['audio-debug'].className = 'audio-debug';
+  elements['audio-debug'].append(elements['audio-debug-content']);
   let audioCalls = 0;
   context.fetch = async (url, options) => {
     assert.equal(url, '/api/audio-response'); assert.equal(options.body.get('lab'), '1');
     assert.equal(options.body.get('version'), 'lab-version'); audioCalls += 1;
-    const status = audioCalls === 1 ? 'uncertain' : 'correct';
+    const status = audioCalls === 1 ? 'uncertain' : audioCalls === 3 ? 'incorrect' : 'correct';
     return { ok: true, json: async () => ({ status, confidence: audioCalls === 1 ? 0.5 : 0.96,
-      debug: { question: 'לאן דנה נוסעת?', transcription: 'לירושלים', status, confidence: audioCalls === 1 ? 0.5 : 0.96,
+      debug: { questionId: options.body.get('questionId'), question: 'לאן דנה נוסעת?', transcription: 'לירושלים', status, confidence: audioCalls === 1 ? 0.5 : 0.96,
         reason: 'Bonne destination.', answeredAt: '2026-10-05T08:00:00Z',
-        evaluationOutput: { status: 'correct', confidence: audioCalls === 1 ? 0.5 : 0.96, reason: 'Bonne destination.' } } }) };
+        evaluationOutput: { status: audioCalls === 3 ? 'incorrect' : 'correct', confidence: audioCalls === 1 ? 0.5 : 0.96, reason: 'Bonne destination.' } } }) };
   };
   await vm.runInContext('submitAudio(new Blob([new Uint8Array(100)], {type:"audio/wav"}), engine.current())', context);
   vm.runInContext("assert.equal(engine.current().id, 'lab-1'); assert.equal(engine.state.attempted, 0)", context);
@@ -269,8 +277,27 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
   assert.equal(JSON.parse(firstAttempt.children[6].textContent).status, 'correct');
   await vm.runInContext('submitAudio(new Blob([new Uint8Array(100)], {type:"audio/wav"}), engine.current())', context);
   vm.runInContext("assert.equal(engine.current().id, 'lab-2')", context);
-  assert.equal(elements['audio-debug-content'].children.length, 2);
-  assert.match(elements['audio-debug-content'].children[0].children[4].textContent, /1 point/);
+  assert.equal(elements['audio-debug'].hidden, true);
+  assert.equal(elements['audio-debug-content'].children.length, 0);
+  const firstArchivedDetails = elements['history'].children.at(-1);
+  assert.equal(firstArchivedDetails.className, 'audio-debug'); assert.equal(firstArchivedDetails.open, true);
+  assert.equal(elements['history'].children.at(-2).textContent, '✅ Juste');
+  const firstArchivedAttempts = firstArchivedDetails.children[0].children;
+  assert.equal(firstArchivedAttempts.length, 2);
+  assert.match(firstArchivedAttempts[0].children[4].textContent, /Aucun point attribué/);
+  assert.match(firstArchivedAttempts[1].children[4].textContent, /1 point/);
+  await vm.runInContext('submitAudio(new Blob([new Uint8Array(100)], {type:"audio/wav"}), engine.current())', context);
+  vm.runInContext("assert.equal(engine.current().id, 'lab-3')", context);
+  const secondArchivedDetails = elements['history'].children.at(-1);
+  assert.equal(elements['history'].children.at(-2).textContent, '❌ Faux');
+  assert.equal(secondArchivedDetails.children[0].children.length, 1);
+  assert.match(secondArchivedDetails.children[0].children[0].children[4].textContent, /0 point/);
+  assert.equal(firstArchivedDetails.children[0].children.length, 2);
+  assert.equal(elements['audio-debug'].hidden, true);
+  await vm.runInContext('submitAudio(new Blob([new Uint8Array(100)], {type:"audio/wav"}), engine.current())', context);
+  vm.runInContext("assert.equal(engine.state.finished, true)", context);
+  assert.equal(elements['feedback'].textContent, '✅ Juste');
   assert.equal(elements['audio-debug'].hidden, false);
+  assert.equal(elements['audio-debug-content'].children.length, 1);
   console.log('OK : laboratoire DEV, brouillons, texte RTL, transcription et JSON, distinction entre verdict modèle et décision retenue.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
