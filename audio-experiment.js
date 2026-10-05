@@ -123,7 +123,7 @@ function configureQuestionLab() {
   questionLabMode = true;
   $('welcome-day').textContent = 'ESPACE DE TEST DEV';
   $('welcome-title').textContent = 'Tester mes questions';
-  $('welcome-intro').textContent = 'Choisis un exercice et réponds comme un élève, avec une note vocale.';
+  $('welcome-intro').textContent = 'Choisis un exercice et réponds comme un élève, avec les choix proposés ou une note vocale.';
   $('welcome-description').textContent = 'Le texte hébreu s’affiche de droite à gauche. Tes brouillons restent dans Airtable pendant les essais.';
   for (const id of ['intake-history', 'intake-prompt', 'intake-form', 'intake-complete', 'start-action', 'audio-catalog-status']) $(id).hidden = true;
   $('question-lab-controls').hidden = false;

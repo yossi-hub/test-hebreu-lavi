@@ -463,7 +463,7 @@ function renderQuestion(scrollToTop = false) {
     $('question-level').textContent = `Niveau ${q.niveau} sur 8`;
     if (typeof audioDemoMode !== 'undefined' && audioDemoMode) {
       const number = audioExperimentQuestions.findIndex(item => item.id === q.id) + 1;
-      $('progress-text').textContent = `Question audio ${number} sur ${audioExperimentQuestions.length}`;
+      $('progress-text').textContent = `${questionLabMode ? 'Question' : 'Question audio'} ${number} sur ${audioExperimentQuestions.length}`;
       $('progress').max = audioExperimentQuestions.length; $('progress').value = number;
       $('question-level').textContent = 'DEV';
     }

@@ -173,3 +173,41 @@ test('Une réponse vocale utilise le texte et les critères du brouillon serveur
     } finally { db.close(); }
   });
 });
+
+
+test('Le lab enchaîne des QCM et réponses audio de niveau 9 sans règles de placement', async () => {
+  const { db, env, records, drafts, unlock } = fixture();
+  for (const position of [4, 5, 6]) records.push({ id: `qcm-${position}`, fields: {
+    [FIELDS.id]: `qcm-${position}`, [FIELDS.phase]: 'Test', [FIELDS.editorialState]: 'Brouillon',
+    [FIELDS.type]: 'qcm', [FIELDS.level]: 9, [FIELDS.points]: 1, [FIELDS.text]: 'דנה נוסעת לירושלים.',
+    [FIELDS.supportGroup]: 'voyage', [FIELDS.blockPosition]: position,
+    [FIELDS.choices]: JSON.stringify([{ libelle: 'נכון', valeur: 'vrai' }, { libelle: 'לא נכון', valeur: 'faux' }]),
+    [FIELDS.answer]: JSON.stringify('vrai'),
+  } });
+  await withFetch(async () => Response.json({ records }), async () => {
+    try {
+      const response = await onRequestPost({ request: request(), env });
+      const data = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(data));
+      assert.deepEqual(data.questions.map(q => q.id), ['reading-1', 'reading-2', 'reading-3', 'qcm-4', 'qcm-5', 'qcm-6']);
+      assert.equal(data.draftQuestions, 6);
+      assert.equal(data.questions[3].type, 'qcm');
+      assert.equal(data.questions[3].bonneReponse, 'vrai');
+      assert.equal(data.questions[3].supportText, data.questions[0].supportText);
+      assert.equal(db.prepare('SELECT version FROM quiz_publications').get().version, 'published-before-lab');
+      assert.ok(compileQuestionSet(base, records, { audioEnabled: true }).errors.some(e => /niveau invalide/.test(e)));
+      for (const change of [
+        row => { row.fields[FIELDS.level] = 10; },
+        row => { row.fields[FIELDS.answer] = JSON.stringify('absent'); },
+        row => { row.fields[FIELDS.blockPosition] = 5; },
+      ]) {
+        const row = records.find(r => r.id === 'qcm-4'), before = structuredClone(row.fields);
+        change(row); unlock();
+        assert.equal((await onRequestPost({ request: request(), env })).status, 422);
+        row.fields = before;
+        assert.equal(db.prepare('SELECT version FROM quiz_question_lab').get().version, data.version);
+      }
+      assert.ok(drafts.every(row => row.fields[FIELDS.editorialState] === 'Brouillon'));
+    } finally { db.close(); }
+  });
+});

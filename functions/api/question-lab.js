@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
     const lock = await env.QUIZ_DB.prepare('UPDATE quiz_dev_sync SET lock_until = ? WHERE id = 1 AND lock_until <= ?').bind(lockUntil, Date.now()).run();
     locked = Number(lock.meta?.changes ?? lock.changes) === 1;
     if (!locked) return json({ ok: false, error: 'Un chargement est en cours ou vient de terminer. Réessaie dans quelques secondes.' }, 429);
-    const result = await draft(context, false, { includeAudioDrafts: true });
+    const result = await draft(context, false, { includeAudioDrafts: true, labMode: true });
     if (result.errors.length) return json({ ok: false, error: 'Corrige ces champs dans Airtable, puis recharge tes questions.', errors: result.errors }, 422);
     const snapshot = { questions: result.snapshot.devAudioQuestions, draftQuestions: result.summary.audioDrafts };
     if (!snapshot.questions.length) return json({ ok: false, error: 'Ajoute tes questions avec Phase = Audio DEV dans Airtable.' }, 422);
