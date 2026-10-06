@@ -219,6 +219,11 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
     supportGroup: 'mon-texte', supportText: 'דנה נוסעת לירושלים ביום ראשון.',
     points: 1, choix: [], bonneReponse: null, obligatoire: true,
   }));
+  context.fetch = async () => ({ ok: true, json: async () => ({ enabled: true, environment: 'production', demo: {type:'audio_response'} }) });
+  elements['audio-dev-entry'].hidden = true;
+  await vm.runInContext('loadAudioCapability()', context);
+  assert.equal(elements['audio-dev-entry'].hidden, true, 'No audio test entry in the student journey');
+  vm.runInContext('assert.equal(audioCapability.enabled,true)', context);
   let imported = 0;
   context.fetch = async (url, options) => {
     assert.equal(url, '/api/question-lab'); assert.equal(options.method, 'POST'); imported += 1;
@@ -228,6 +233,7 @@ console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias
   assert.equal(elements['intake-form'].hidden, true);
   assert.equal(elements['start-action'].hidden, true);
   assert.equal(elements['question-lab-controls'].hidden, false);
+  assert.equal(elements['audio-dev-entry'].hidden, false, 'The lab remains available to administrators');
   assert.equal(elements['welcome-title'].textContent, 'Tester mes questions');
   await vm.runInContext('loadQuestionLab(true)', context);
   assert.equal(imported, 1);

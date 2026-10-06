@@ -59,11 +59,6 @@ async function loadAudioCapability() {
     await questionSetReady;
     if (data?.enabled === true && data.demo?.type === 'audio_response') {
       audioCapability = data;
-      if (data.environment === 'production') $('audio-demo-start').textContent = '🎙️ Tester les questions audio';
-      populateAudioExercises(); $('audio-dev-entry').hidden = false;
-      $('audio-catalog-status').textContent = devAudioQuestions.length
-        ? `${devAudioQuestions.length} question${devAudioQuestions.length > 1 ? 's' : ''} audio ${new URLSearchParams(globalThis.location?.search || '').get('preview') === '1' ? 'en aperçu Airtable' : 'publiée' + (devAudioQuestions.length > 1 ? 's' : '')}.`
-        : 'Démo audio · Ajoute tes questions dans Airtable, puis mets à jour DEV.';
       if (new URLSearchParams(globalThis.location?.search || '').get('lab') === '1') {
         configureQuestionLab(); await loadQuestionLab(false);
       }
@@ -123,6 +118,7 @@ function populateAudioExercises() {
 
 function configureQuestionLab() {
   questionLabMode = true;
+  $('audio-dev-entry').hidden = false;
   $('welcome-day').textContent = audioCapability?.environment === 'production' ? 'ESPACE DE TEST' : 'ESPACE DE TEST DEV';
   $('welcome-title').textContent = 'Tester mes questions';
   $('welcome-intro').textContent = 'Choisis un exercice et réponds comme un élève, avec les choix proposés ou une note vocale.';
