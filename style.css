@@ -172,3 +172,7 @@ footer { text-align: center; color: var(--muted); font-size: 14px; padding: 22px
 .audio-attempt h4 { margin: 16px 0 6px; }
 .audio-transcript { white-space: pre-wrap; text-align: right; line-height: 1.7; }
 .audio-attempt pre { padding: 12px; background: #f3f5f4; border-radius: 8px; }
+
+.contest-opt-in { display: flex; align-items: flex-start; gap: 12px; margin: 16px 0 0; font-weight: 400; cursor: pointer; }
+.contest-opt-in input { flex: 0 0 20px; width: 20px; height: 20px; margin: 2px 0 0; padding: 0; accent-color: var(--green); cursor: pointer; }
+#contest-help { margin: 8px 0 0 32px; font-size: 13px; }

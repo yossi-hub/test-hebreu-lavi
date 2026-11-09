@@ -34,6 +34,8 @@ Les questions en hébreu sont affichées de droite à gauche. Le point d’inter
 
 ## Parcours et score
 
+- Après les coordonnées, une case facultative, décochée par défaut, propose de participer au jeu concours de Hanouka pour gagner un stage complet d’hébreu, avec la mention « Participation ouverte jusqu’au 5 décembre ». Le choix est transmis en booléen dans `jeu_concours_hanouka` à `/api/results` puis à Make, et conservé dans D1 (1 = oui, 0 = non). La colonne est ajoutée automatiquement aux bases existantes ; les anciens tests et les requêtes sans ce champ gardent la valeur 0. Le choix reste en mémoire si l’élève recommence le test. Cette modification n’ajoute aucun attribut Brevo et n’applique pas de fermeture automatique à la date indiquée.
+
 - Le profil demande le prénom et le nom dans une même première question, puis l’email et le téléphone. Tous sont obligatoires ; email au format valide et téléphone au format international obligatoire (par exemple `+33612345678` ou `+972501234567`). Les espaces et séparateurs sont retirés ; le préfixe `00` est converti en `+`. La saisie et le backend refusent les numéros sans indicatif.
 - Les quatre autoévaluations sont toujours posées. Le nombre de « Oui » consécutifs avant le premier « Non » choisit le premier mini-test : 0 → niveau 1, 1 → niveau 2, 2 → niveau 3, 3 → niveau 5 et 4 → niveau 6. Une combinaison contradictoire est donc interprétée prudemment à partir du premier « Non ».
 - Les réponses aux quatre autoévaluations passent immédiatement à la suite, sans message de confirmation du professeur.

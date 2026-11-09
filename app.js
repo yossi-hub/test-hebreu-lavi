@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 let engine = createQuizEngine(questions, parcours);
 // Données conservées uniquement en mémoire : un rechargement les efface.
-const userProfile = { prenom: '', nom: '', email: '', telephone: '', format_cours: '' };
+const userProfile = { prenom: '', nom: '', email: '', telephone: '', format_cours: '', jeu_concours_hanouka: false };
 const contactPreferenceStep = {
   key: 'format_cours', label: 'Préférence de cours', question: 'D’ordre général, préfères-tu apprendre l’hébreu en présentiel ou en distanciel ?', type: 'text',
 };
@@ -142,6 +142,7 @@ function scrollTestToTop() {
 }
 function startTest() {
   if (intakeIndex < intakeSteps.length) return;
+  userProfile.jeu_concours_hanouka = $('contest-participation').checked === true;
   if (typeof stopAudio === 'function') {
     stopAudio(); audioDemoMode = false; engine = createQuizEngine(questions, parcours);
     $('audio-demo-return').hidden = true; $('audio-debug').hidden = true;
@@ -688,6 +689,7 @@ async function sendResult(state) {
         nom: userProfile.nom,
         email: userProfile.email,
         telephone: userProfile.telephone,
+        jeu_concours_hanouka: userProfile.jeu_concours_hanouka,
         format_cours: userProfile.format_cours,
         niveau_lavi: state.variables.niveau_lavi,
         score: state.score,

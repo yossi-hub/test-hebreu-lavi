@@ -28,6 +28,7 @@ export async function onRequestPost({ request, env }) {
     nom: clean(input.nom, 80),
     email: clean(input.email, 160).toLowerCase(),
     telephone: internationalPhone(input.telephone),
+    jeu_concours_hanouka: input.jeu_concours_hanouka === true,
     niveau_lavi: Number(input.niveau_lavi),
     score: Number(input.score),
     points_possibles: Number(input.points_possibles),

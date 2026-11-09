@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const created = [];
 class Element {
-  constructor(tag='div') { this.tag=tag; this.children=[]; this.hidden=false; this.events={}; this.attributes={}; this.value=''; this.validity={valid:true}; this.classList={toggle(){}}; }
+  constructor(tag='div') { this.tag=tag; this.children=[]; this.hidden=false; this.events={}; this.attributes={}; this.value=''; this.checked=false; this.validity={valid:true}; this.classList={toggle(){}}; }
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren() { this.children=[]; }
   addEventListener(name,fn) {this.events[name]=fn;}
@@ -32,6 +32,11 @@ const context=vm.createContext({assert,URL,URLSearchParams,FormData,Blob,AbortCo
   createElement(tag) {const e=new Element(tag);created.push(e);return e;},
 }});
 context.scrollPositions=[];
+context.resultPayloads=[];
+context.fetch=async(url, options)=>{
+  if (url === '/api/results') context.resultPayloads.push(JSON.parse(options.body));
+  return {ok:true,json:async()=>({success:true})};
+};
 context.scrollTo=({top})=>context.scrollPositions.push(top);
 for(const file of ['questions.js','engine.js','audio-recorder.js','audio-experiment.js','app.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context);
 vm.runInContext(`
@@ -80,6 +85,10 @@ assert.equal(engine.state.score,0);
 assert.equal($('intake-choices').hidden,true);
 assert.equal($('intake-confirmation').textContent,'Parfait, merci Alice. On peut commencer le test 😊');
 $('start').events.click();
+assert.equal(userProfile.jeu_concours_hanouka,false);
+$('contest-participation').checked=true;
+$('start').events.click();
+assert.equal(userProfile.jeu_concours_hanouka,true);
 assert.equal(testIntroShown,true);
 const intro=$('history').children[0];
 assert.equal(intro.children[1].textContent,'OK Alice,');
@@ -131,6 +140,8 @@ while(!engine.state.finished) {
 assert.equal(engine.state.score,21);
 assert.equal($('score').textContent,'21 / 21 points');
 assert.equal($('results').hidden,false);
+assert.equal(resultPayloads.length,1);
+assert.equal(resultPayloads[0].jeu_concours_hanouka,true);
 assert.equal(engine.state.variables.niveau_lavi,'9');
 assert.ok($('result-summary').textContent.includes('Niveau Lavi conseillé : 9.'));
 assert.equal($('history').children.length,expectedHistory);
@@ -140,6 +151,7 @@ assert.equal($('history').children.length,1);
 assert.equal($('question-title').textContent,'Avant de commencer');
 assert.equal($('support-progress').hidden,true);
 assert.equal(userProfile.prenom,'Alice');
+assert.equal(userProfile.jeu_concours_hanouka,true);
 assert.equal($('results').hidden,true);
 previousMediaKey='';
 renderMedia(questions.find(q=>q.media?.type==='video'));
@@ -209,6 +221,14 @@ assert.equal(engine.current().id, 'texte-b-1');
 assert.equal($('progress-text').textContent, 'Question audio 1 sur 3');
 assert.equal($('question-passage').children[0].textContent, 'Texte commun texte-b');
 $('audio-demo-return').events.click();
+`, context);
+vm.runInContext(`
+// Un parcours non inscrit transmet bien false, sans empêcher l'envoi du bilan.
+$('contest-participation').checked=false;
+startTest();
+assert.equal(userProfile.jeu_concours_hanouka,false);
+sendResult({variables:{niveau_lavi:'1'},score:0,possible:3,attempted:3,reason:'completed'});
+assert.equal(resultPayloads.at(-1).jeu_concours_hanouka,false);
 `, context);
 console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');
 

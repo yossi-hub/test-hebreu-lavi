@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { locationFromRequest, internalLocationHtml } from '../lib/location.js';
 import { onRequestPost } from '../functions/api/results.js';
 import { brevoContact, syncBrevoContact } from '../lib/brevo.js';
+import { PARTICIPATIONS_SCHEMA } from '../lib/participations.js';
 
 const empty = { country: null, countryCode: null, region: null, city: null, postalCode: null, timezone: null };
 const cf = { country: 'FR', region: 'Île-de-France', city: 'Paris', postalCode: '75012', timezone: 'Europe/Paris' };
@@ -24,7 +25,7 @@ function database() {
   const sqlite = new DatabaseSync(':memory:');
   return { sqlite, binding: { prepare(sql) {
     const statement = sqlite.prepare(sql);
-    return { run: async () => statement.run(), bind: (...values) => ({ run: async () => statement.run(...values) }) };
+    return { run: async () => statement.run(), all: async () => ({ results: statement.all() }), bind: (...values) => ({ run: async () => statement.run(...values) }) };
   } } };
 }
 
@@ -87,6 +88,44 @@ test('local execution and unavailable D1 never prevent transmission, missing geo
   }
   assert.equal(sent.length, 2);
   for (const payload of sent) assert.deepEqual(payload.location, empty);
+});
+
+test('Hanouka participation requires explicit opt-in and reaches D1 and Make', async t => {
+  const db = database();
+  t.after(() => db.sqlite.close());
+  const sent = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    sent.push(JSON.parse(options.body));
+    return new Response('Accepted');
+  });
+  const env = { QUIZ_DB: db.binding, MAKE_WEBHOOK_URL: 'https://make.test/webhook' };
+  for (const choice of [true, false, undefined, 'true', 'false', 1, null]) {
+    const response = await onRequestPost({ request: submission({ ...participant, jeu_concours_hanouka: choice }), env });
+    assert.equal(response.status, 200);
+    const payload = sent.at(-1);
+    assert.equal(payload.jeu_concours_hanouka, choice === true);
+    assert.equal(db.sqlite.prepare('SELECT jeu_concours_hanouka FROM test_participations WHERE id = ?')
+      .get(payload.participation_id).jeu_concours_hanouka, choice === true ? 1 : 0);
+  }
+});
+
+test('existing D1 participations are preserved when the Hanouka column is added', async t => {
+  const db = database();
+  t.after(() => db.sqlite.close());
+  db.sqlite.exec(PARTICIPATIONS_SCHEMA.replace('  jeu_concours_hanouka INTEGER NOT NULL DEFAULT 0,\n', ''));
+  db.sqlite.prepare(`INSERT INTO test_participations
+    (id, date_test, prenom, nom, email, telephone, niveau_lavi, score, points_possibles, questions_evaluees, raison_fin, source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run('existing', '2026-11-01', participant.prenom, participant.nom,
+      participant.email, participant.telephone, 4, 12, 16, 16, 'completed', 'Test Hébreu Lavi');
+  t.mock.method(globalThis, 'fetch', async () => new Response('Accepted'));
+  const env = { QUIZ_DB: db.binding, MAKE_WEBHOOK_URL: 'https://make.test/webhook' };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    assert.equal((await onRequestPost({ request: submission({ ...participant, jeu_concours_hanouka: true }), env })).status, 200);
+  }
+  const rows = db.sqlite.prepare('SELECT id, jeu_concours_hanouka FROM test_participations ORDER BY rowid').all();
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].id, 'existing');
+  assert.deepEqual(rows.map(row => row.jeu_concours_hanouka), [0, 1, 1]);
 });
 
 test('Make errors keep the participation and location in D1', async t => {
