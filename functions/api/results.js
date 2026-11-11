@@ -1,6 +1,7 @@
 import { internalLocationHtml, locationFromRequest } from '../../lib/location.js';
 import { markNotification, saveParticipation } from '../../lib/participations.js';
 import { internationalPhone, syncBrevoContact } from '../../lib/brevo.js';
+import { normalizeMistakes, syncAirtableParticipant } from '../../lib/airtable-participants.js';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -53,6 +54,9 @@ export async function onRequestPost({ request, env }) {
     payload.format_cours = input.format_cours;
   }
   payload.participation_id = crypto.randomUUID();
+  let erreurs;
+  try { erreurs = normalizeMistakes(input.erreurs); }
+  catch { return json({ ok: false, error: 'Détail des fautes invalide.' }, 400); }
   payload.location = locationFromRequest(request);
   // This additional field is mapped only in Make's internal notification.
   payload.internal_location_html = internalLocationHtml(payload.location);
@@ -62,10 +66,11 @@ export async function onRequestPost({ request, env }) {
   // Independent delivery: Brevo still receives the result when Make is unavailable.
   // Awaited before returning so Pages does not discard an unfinished request.
   const brevoSync = syncBrevoContact(env, payload, saved ? env.QUIZ_DB : undefined);
+  const airtableSync = syncAirtableParticipant(env, { ...payload, erreurs }, env.QUIZ_DB);
   try {
     return await sendToMake(env, payload, mark);
   } finally {
-    await brevoSync;
+    await Promise.all([brevoSync, airtableSync]);
   }
 }
 

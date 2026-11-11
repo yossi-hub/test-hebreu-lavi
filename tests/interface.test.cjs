@@ -39,6 +39,7 @@ context.fetch=async(url, options)=>{
 };
 context.scrollTo=({top})=>context.scrollPositions.push(top);
 for(const file of ['questions.js','engine.js','audio-recorder.js','audio-experiment.js','app.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context);
+(async () => {
 vm.runInContext(`
 const firstQcm=questions.find(q=>q.id==='353a37e5-2d45-4bec-a856-a8312586b6f0');
 assert.equal(parseTypedAnswer(firstQcm,'אני דויד'),firstQcm.bonneReponse);
@@ -140,8 +141,12 @@ while(!engine.state.finished) {
 assert.equal(engine.state.score,21);
 assert.equal($('score').textContent,'21 / 21 points');
 assert.equal($('results').hidden,false);
+`, context);
+await new Promise(setImmediate);
+vm.runInContext(`
 assert.equal(resultPayloads.length,1);
 assert.equal(resultPayloads[0].jeu_concours_hanouka,true);
+assert.equal(resultPayloads[0].erreurs.length,0);
 assert.equal(engine.state.variables.niveau_lavi,'9');
 assert.ok($('result-summary').textContent.includes('Niveau Lavi conseillé : 9.'));
 assert.equal($('history').children.length,expectedHistory);
@@ -227,13 +232,14 @@ vm.runInContext(`
 $('contest-participation').checked=false;
 startTest();
 assert.equal(userProfile.jeu_concours_hanouka,false);
-sendResult({variables:{niveau_lavi:'1'},score:0,possible:3,attempted:3,reason:'completed'});
+`, context);
+await vm.runInContext("sendResult({variables:{niveau_lavi:'1'},score:0,possible:3,attempted:3,reason:'completed',mistakes:[]})", context);
+vm.runInContext(`
 assert.equal(resultPayloads.at(-1).jeu_concours_hanouka,false);
 `, context);
 console.log('OK : profil, validations, parcours UI, QCM à choix unique, médias, score, historique, redémarrage.');
 
 // L’espace de test importe les brouillons, présélectionne le texte et laisse parcourir les trois questions.
-(async () => {
   const labQuestions = [1, 2, 3].map(position => ({
     id: 'lab-' + position, type: 'audio_response', texte: 'לאן דנה נוסעת?',
     supportGroup: 'mon-texte', supportText: 'דנה נוסעת לירושלים ביום ראשון.',

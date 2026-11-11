@@ -1,4 +1,17 @@
 // Moteur sans dépendance, indépendant de l’affichage.
+function quizMistake(question, answer, skipped) {
+  const label = value => {
+    if (value == null) return 'Question passée';
+    if (Array.isArray(value)) return value.map(label).join(' ; ');
+    if (question.type === 'audio_response') return 'Réponse vocale incorrecte';
+    if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+    return question.choix?.find(choice => choice.valeur === value)?.libelle || String(value);
+  };
+  return {
+    question_id: question.id, question: question.texte, answer: label(answer), skipped,
+    expected: question.type === 'audio_response' ? 'Réponse conforme aux critères de la question orale' : label(question.bonneReponse),
+  };
+}
 function questionSupport(question, block) {
   if (question?.media?.type === 'video') {
     let source = question.media.url;
@@ -107,7 +120,7 @@ function createAdaptiveQuizEngine(questionList, configuration) {
     const coherenceErrors = validateQuestionCoherence(questionList, configuration);
     if (coherenceErrors.length) throw new Error(coherenceErrors.join(' '));
     state = {
-      answers: {}, variables: {...configuration.variables}, score: 0, possible: 0,
+      answers: {}, mistakes: [], variables: {...configuration.variables}, score: 0, possible: 0,
       attempted: 0, answered: false, finished: false, reason: '', last: null,
       mode: 'orientation', orientationIndex: 0, currentQuestionId: selfAssessmentIds[0],
       currentLevel: null, levelQuestionNumber: 0, testQuestionIndex: 0, testCorrect: 0,
@@ -145,6 +158,7 @@ function createAdaptiveQuizEngine(questionList, configuration) {
     }
     state.answered = true;
     state.last = {questionId: item.id, scored, correct, skipped: empty};
+    if (scored && !correct) state.mistakes.push(quizMistake(item, answer, empty));
     return state.last;
   }
 
@@ -232,7 +246,7 @@ function createLegacyQuizEngine(questionList, configuration) {
     .replace(/[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7\u200e\u200f]/g, '').trim().replace(/\s+/g, ' ');
   let state;
   function reset() {
-    state = { blockIndex: 0, itemIndex: 0, answers: {}, variables: {...configuration.variables},
+    state = { blockIndex: 0, itemIndex: 0, answers: {}, mistakes: [], variables: {...configuration.variables},
       score: 0, possible: 0, attempted: 0, answered: false, finished: false, reason: '', last: null };
   }
   function current() {
@@ -280,6 +294,7 @@ function createLegacyQuizEngine(questionList, configuration) {
     }
     state.answered = true;
     state.last = {questionId: question.id, scored, correct, skipped: empty};
+    if (scored && !correct) state.mistakes.push(quizMistake(question, answer, empty));
     return state.last;
   }
   function finish(reason) { state.finished = true; state.reason = reason; }

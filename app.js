@@ -121,6 +121,7 @@ let selection = new Set();
 let orientationSelections = new Map();
 let testIntroShown = false;
 let resultEmailSent = false;
+let participantCapture = Promise.resolve();
 let recommendationRequest = 0;
 let previousMediaKey = '';
 let previousPassage = '';
@@ -143,6 +144,10 @@ function scrollTestToTop() {
 function startTest() {
   if (intakeIndex < intakeSteps.length) return;
   userProfile.jeu_concours_hanouka = $('contest-participation').checked === true;
+  participantCapture = fetch('/api/participants', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(userProfile),
+  }).catch(() => {});
   if (typeof stopAudio === 'function') {
     stopAudio(); audioDemoMode = false; engine = createQuizEngine(questions, parcours);
     $('audio-demo-return').hidden = true; $('audio-debug').hidden = true;
@@ -681,6 +686,8 @@ async function sendResult(state) {
   const status = $('result-email-status');
   status.textContent = 'Envoi de ton bilan…';
   try {
+    // Finish after intake capture so a slow start request cannot overwrite the final result.
+    await participantCapture;
     const response = await fetch('/api/results', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -696,6 +703,7 @@ async function sendResult(state) {
         points_possibles: state.possible,
         questions_evaluees: state.attempted,
         raison_fin: state.reason,
+        erreurs: state.mistakes,
       }),
     });
     if (!response.ok) throw new Error('Envoi refusé');

@@ -99,6 +99,23 @@ python3 scripts/import-typeform.py /chemin/vers/export.json
 
 ## Stockage et vérifications
 
+### Participants dans Airtable
+
+La table unique [Participants — Base Cours](https://airtable.com/appNbwmEyVQsXA25U/tbl2K2rz483T9kP6X) reçoit les personnes qui démarrent le test après avoir renseigné leurs coordonnées. `/api/participants` crée une fiche **Commencé** avec leur identité, email, date et choix explicite du jeu-concours. Cette capture ne déclenche ni bilan Make ni contact Brevo. Si la personne a déjà une fiche, le démarrage conserve son dernier résultat terminé.
+
+À la fin, `/api/results` met à jour la même fiche par email normalisé : **Terminé**, score, niveau, jeu-concours, nombre de fautes et détail lisible (question, réponse donnée, bonne réponse). Les questions passées comptent comme des fautes ; les autoévaluations non notées sont exclues. Pour une question vocale, le détail indique le verdict oral sans conserver le fichier ni ajouter de transcription. Recommencer efface les fautes du moteur ; terminer à nouveau remplace le dernier résultat dans Airtable. Un ancien navigateur qui n’envoie pas les fautes laisse ces champs inconnus, sans inventer zéro faute.
+
+Activer `AIRTABLE_PARTICIPANTS_ENABLED=true` en **Production** puis redéployer. Le secret serveur `AIRTABLE_TOKEN` existant doit avoir `data.records:read` et `data.records:write` sur **Base Cours**. La synchronisation reste désactivée dans les previews sans cette variable ; aucun jeton n’est transmis au navigateur. Les IDs de la base, de la table et des neuf champs sont fixés dans `lib/airtable-participants.js`. Les mises à jour utilisent [PATCH et performUpsert](https://airtable.com/developers/web/api/update-multiple-records).
+
+La table interne D1 `airtable_sync` conserve le reçu (`accepted`, `failed`, `pending`, `not_configured`), le code HTTP, l’ID de fiche et les champs à synchroniser. Une panne Airtable ne bloque pas les transmissions Make/Brevo ; une panne Make n’empêche pas Airtable. Les erreurs ne sont pas ajoutées aux emails Make ni aux attributs Brevo. Les champs conservés permettent une reprise manuelle ; il n’y a pas de renvoi automatique. Les anciens tests ne sont pas importés automatiquement.
+
+```sql
+SELECT updated_at, status, http_status, record_id
+FROM airtable_sync ORDER BY updated_at DESC LIMIT 20;
+```
+
+Validation sans messages ni appels payants : `node --test tests/airtable-participants.test.mjs tests/results.test.mjs tests/engine.test.cjs tests/interface.test.cjs`.
+
 Dans le navigateur, `userProfile` et l’état du moteur restent en mémoire JavaScript. Un rechargement ou la fermeture de la page les efface. À la fin du test, l’application envoie les coordonnées, le score et le niveau conseillé à la fonction Cloudflare Pages `/api/results`. Cette fonction valide les données, enregistre la participation et sa localisation approximative dans D1, puis les transmet à un webhook Make privé. Le scénario Make utilise deux modules Gmail : un récapitulatif au bureau sur `contact@oulpanlavi.com` et un bilan personnalisé à l’utilisateur. Les médias sont chargés depuis leurs hébergeurs externes.
 
 L’URL du webhook Make doit être enregistrée dans Cloudflare Pages sous la variable chiffrée `MAKE_WEBHOOK_URL`. Elle ne doit jamais être placée dans `app.js` ni commitée dans GitHub.
