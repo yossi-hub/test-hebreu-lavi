@@ -39,6 +39,9 @@ test('Mistakes preserve Hebrew, reject malformed submissions and do not invent e
   assert.equal(normalizeMistakes(undefined),null);
   for(const value of [{},[null],[{}],Array(151).fill({})]) assert.throws(()=>normalizeMistakes(value));
   const fields=participantFields(payload);
+  assert.equal(fields[f.phone],payload.telephone);
+  assert.equal(participantFields({...payload,telephone:'0033 6 12 34 56 78'},true)[f.phone],payload.telephone);
+  assert.ok(!(f.phone in participantFields({...payload,telephone:undefined})));
   assert.equal(fields[f.contest],true); assert.equal(fields[f.mistakes],1);
   assert.match(fields[f.details],/בוקר טוב/); assert.match(fields[f.details],/אני דנה/);
   assert.equal(fields[f.status],'Terminé');
@@ -79,8 +82,23 @@ test('Intake stores the opt-in but cannot send Make emails or Brevo contacts',as
   const fields=JSON.parse(calls[1].body).records[0].fields;
   assert.equal(fields[f.email],'test@example.com'); assert.equal(fields[f.contest],true);
   assert.equal(fields[f.status],'Commencé'); assert.ok(!(f.score in fields));
+  assert.equal(fields[f.phone],payload.telephone);
   assert.equal((await start({request:request({...payload,email:'invalid'}),env})).status,400);
   assert.equal(calls.length,2);
+});
+
+test('Restart updates only the phone of an existing completed participant and preserves results', async t => {
+  const calls=[];
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    calls.push({url:String(url),options});
+    if(options.method==='PATCH') return Response.json({id:'recExisting'});
+    assert.equal(new URL(url).searchParams.get('returnFieldsByFieldId'),'true');
+    return Response.json({records:[{id:'recExisting',fields:{[f.status]:'Terminé',[f.score]:8,[f.details]:'Previous mistakes'}}]});
+  });
+  assert.equal((await start({request:request({...payload,telephone:'0033 6 12 34 56 78'}),env})).status,200);
+  assert.equal(calls.length,2);
+  assert.match(calls[1].url,/\/recExisting$/);
+  assert.deepEqual(JSON.parse(calls[1].options.body),{fields:{[f.phone]:'+33612345678'}});
 });
 
 test('Airtable failure preserves the complete data and does not block existing result deliveries',async t=>{

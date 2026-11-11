@@ -13,11 +13,12 @@ export async function onRequestPost({ request, env }) {
   const clean = (value, limit) => typeof value === 'string' ? value.trim().slice(0, limit) : '';
   const payload = {
     prenom: clean(input.prenom, 80), nom: clean(input.nom, 80), email: clean(input.email, 160).toLowerCase(),
+    telephone: internationalPhone(input.telephone),
     jeu_concours_hanouka: input.jeu_concours_hanouka === true,
     date_test: new Date().toISOString(), participation_id: crypto.randomUUID(),
   };
   if (!payload.prenom || !payload.nom || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)
-    || !internationalPhone(input.telephone)) return json({ ok: false }, 400);
+    || !payload.telephone) return json({ ok: false }, 400);
   const result = await syncAirtableParticipant(env, payload, env.QUIZ_DB, { started: true });
   return json({ ok: result.status === 'accepted' || result.status === 'disabled' }, result.status === 'failed' ? 502 : 200);
 }
