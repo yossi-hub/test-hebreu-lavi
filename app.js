@@ -122,6 +122,10 @@ let orientationSelections = new Map();
 let testIntroShown = false;
 let resultEmailSent = false;
 let recommendationRequest = 0;
+let recommendationController = null;
+let recommendationConsent = false;
+let recommendationResultState = null;
+let recommendationOptions = null;
 let previousMediaKey = '';
 let previousPassage = '';
 function personalize(text) {
@@ -150,14 +154,12 @@ function startTest() {
   orientationSelections = new Map();
   testIntroShown = false;
   resultEmailSent = false;
-  recommendationRequest += 1;
+  resetClassRecommendations();
   previousMediaKey = '';
   previousPassage = '';
   $('history').replaceChildren();
   $('welcome').hidden = true;
   $('results').hidden = true;
-  $('class-recommendations-status').textContent = '';
-  $('class-recommendations-list').replaceChildren();
   $('quiz').hidden = false;
   $('active-question').hidden = false;
   showTestIntroduction();
@@ -703,71 +705,229 @@ async function sendResult(state) {
   }
 }
 
-function appendClassRecommendation(item) {
+function cancelRecommendationRequest() {
+  recommendationRequest += 1;
+  recommendationController?.abort();
+  recommendationController = null;
+  $('class-recommendations-list').setAttribute('aria-busy', 'false');
+}
+
+function resetClassRecommendations(state = null) {
+  cancelRecommendationRequest();
+  recommendationConsent = false;
+  recommendationResultState = state;
+  recommendationOptions = null;
+  $('recommendation-optin').hidden = false;
+  for (const id of ['recommendation-declined', 'recommendation-reconsider', 'recommendation-format',
+    'recommendation-location-form', 'recommendation-location-error', 'recommendation-controls', 'recommendation-retry']) {
+    $(id).hidden = true;
+  }
+  for (const id of ['recommendation-country', 'recommendation-city']) {
+    $(id).value = '';
+    $(id).removeAttribute('aria-invalid');
+  }
+  $('class-recommendations-status').textContent = '';
+  $('class-recommendations-list').replaceChildren();
+}
+
+function chooseClassRecommendations() {
+  if (!recommendationResultState) return;
+  recommendationConsent = true;
+  showRecommendationFormat();
+}
+
+function showRecommendationFormat() {
+  if (!recommendationConsent || !recommendationResultState) return;
+  cancelRecommendationRequest();
+  recommendationOptions = null;
+  for (const id of ['recommendation-optin', 'recommendation-declined', 'recommendation-reconsider',
+    'recommendation-location-form', 'recommendation-location-error', 'recommendation-controls', 'recommendation-retry']) {
+    $(id).hidden = true;
+  }
+  $('recommendation-format').hidden = false;
+  $('class-recommendations-status').textContent = '';
+  $('class-recommendations-list').replaceChildren();
+  $('recommendation-format-question').focus({ preventScroll: true });
+  scrollConversationToBottom();
+}
+
+function recommendationDate(value) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string' || !raw.trim()) return '';
+  const date = new Date(raw);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris',
+  }).format(date);
+}
+
+function appendClassRecommendation(item, parent = $('class-recommendations-list')) {
+  let signupUrl;
+  try {
+    signupUrl = new URL(item.lien);
+    if (signupUrl.protocol !== 'https:') return false;
+  } catch { return false; }
+
   const card = document.createElement('article');
   card.className = 'class-card';
 
-  const title = document.createElement('h4');
+  const title = document.createElement('h5');
   title.textContent = item.nom;
-  const chapter = item.chapitre_en_cours == null ? '' : `Chapitre ${item.chapitre_en_cours}`;
-  const details = [chapter, item.niveau, item.format, item.jour, item.horaires].filter(Boolean);
+  const status = document.createElement('p');
+  status.className = 'class-status';
+  const upcoming = String(item.statut).trim().toLowerCase() === 'upcoming';
+  const date = recommendationDate(upcoming ? item.date_debut : item.date_prochain_cours);
+  status.textContent = upcoming ? 'À venir' : 'En cours';
+  if (date) status.textContent += upcoming ? ` · Démarre le ${date}` : ` · Prochain cours le ${date}`;
+  const details = [item.niveau, item.jour, item.horaires].filter(Boolean);
   const meta = document.createElement('p');
   meta.className = 'class-meta';
   meta.textContent = details.join(' · ');
-  const reason = document.createElement('p');
-  reason.className = 'class-reason';
-  reason.textContent = item.raison;
-  card.append(title);
+  card.append(title, status);
   if (details.length) card.append(meta);
-  card.append(reason);
-
-  try {
-    const url = new URL(item.lien);
-    if (url.protocol === 'https:') {
-      const link = document.createElement('a');
-      link.className = 'class-link';
-      link.href = url.toString();
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = 'Découvrir cette classe →';
-      card.append(link);
-    }
-  } catch {
-    // Une recommandation reste lisible même si son lien Airtable est invalide.
+  const isZoom = String(item.format).trim().toLowerCase() === 'zoom';
+  const location = !isZoom ? item.lieu : '';
+  if (location) {
+    const address = document.createElement('p');
+    address.className = 'class-meta';
+    address.textContent = location;
+    card.append(address);
   }
-  $('class-recommendations-list').append(card);
+
+  const link = document.createElement('a');
+  link.className = 'class-link';
+  link.href = signupUrl.toString();
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = 'S’inscrire à cette classe →';
+  card.append(link);
+  parent.append(card);
+  return true;
 }
 
-async function loadClassRecommendations(state) {
+function appendRecommendationGroup(title, items, emptyMessage) {
+  const group = document.createElement('section');
+  group.className = 'class-recommendations-group';
+  const heading = document.createElement('h4');
+  heading.textContent = title;
+  group.append(heading);
+  let count = 0;
+  for (const item of items.slice(0, 3)) {
+    if (appendClassRecommendation(item, group)) count += 1;
+  }
+  if (!count) {
+    const empty = document.createElement('p');
+    empty.className = 'help';
+    empty.textContent = emptyMessage;
+    group.append(empty);
+  }
+  $('class-recommendations-list').append(group);
+  return count;
+}
+
+async function loadClassRecommendations(state, options = { presentiel: false }) {
+  if (!recommendationConsent || !state) return;
+  cancelRecommendationRequest();
   const requestId = ++recommendationRequest;
+  const controller = typeof globalThis.AbortController === 'function' ? new AbortController() : null;
+  recommendationController = controller;
+  recommendationOptions = {
+    presentiel: options.presentiel === true,
+    ...(options.presentiel === true ? { localisation: { ...options.localisation } } : {}),
+  };
+  const requestOptions = recommendationOptions;
   const status = $('class-recommendations-status');
   const list = $('class-recommendations-list');
+  $('recommendation-format').hidden = true;
+  $('recommendation-location-form').hidden = true;
+  $('recommendation-location-error').hidden = true;
+  $('recommendation-retry').hidden = true;
+  $('recommendation-controls').hidden = false;
   list.replaceChildren();
+  list.setAttribute('aria-busy', 'true');
   status.textContent = 'Nous recherchons les classes adaptées à ton niveau…';
   try {
     const response = await fetch('/api/recommendations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ niveau_lavi: state.variables.niveau_lavi }),
+      body: JSON.stringify({ niveau_lavi: state.variables.niveau_lavi, ...requestOptions }),
+      ...(controller ? { signal: controller.signal } : {}),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Recommandations indisponibles');
     if (requestId !== recommendationRequest) return;
     const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
-    if (!recommendations.length) {
-      status.textContent = 'Aucune classe ouverte ne correspond à ton niveau pour le moment. Nous te contacterons avec une proposition.';
-      return;
+    const zoom = Array.isArray(data.groups?.zoom) ? data.groups.zoom
+      : recommendations.filter(item => String(item.format).trim().toLowerCase() === 'zoom');
+    const presentiel = Array.isArray(data.groups?.presentiel) ? data.groups.presentiel
+      : recommendations.filter(item => String(item.format).trim().toLowerCase().startsWith('présentiel'));
+    let count = 0;
+    if (requestOptions.presentiel) {
+      count += appendRecommendationGroup('En présentiel près de chez toi', presentiel,
+        data.localisation_reconnue === false
+          ? 'Nous n’avons pas identifié de secteur de cours pour ce lieu. Vérifie ta ville ou découvre les possibilités sur Zoom.'
+          : 'Aucune classe en présentiel disponible dans ton secteur pour le moment. Découvre aussi les possibilités sur Zoom.');
     }
-    status.textContent = recommendations.length === 1
-      ? 'Voici la classe la plus adaptée à ton niveau.'
-      : 'Voici les classes les plus adaptées à ton niveau.';
-    recommendations.forEach(appendClassRecommendation);
+    count += appendRecommendationGroup('Sur Zoom', zoom,
+      'Aucune classe Zoom disponible pour le moment. Tu peux revenir consulter les propositions plus tard.');
+    status.textContent = count
+      ? 'Voici les classes les plus proches de ton point de départ, classées par format.'
+      : 'Aucune classe ouverte à l’inscription n’est disponible pour cette recherche pour le moment.';
     scrollConversationToBottom();
   } catch (error) {
     if (requestId !== recommendationRequest) return;
     status.textContent = 'Les propositions de classes sont temporairement indisponibles. Ton niveau a bien été calculé.';
+    $('recommendation-retry').hidden = false;
+  } finally {
+    if (requestId === recommendationRequest) {
+      list.setAttribute('aria-busy', 'false');
+      recommendationController = null;
+    }
   }
 }
+
+$('recommendation-yes').addEventListener('click', chooseClassRecommendations);
+$('recommendation-reconsider').addEventListener('click', chooseClassRecommendations);
+$('recommendation-no').addEventListener('click', () => {
+  resetClassRecommendations(recommendationResultState);
+  $('recommendation-optin').hidden = true;
+  $('recommendation-declined').hidden = false;
+  $('recommendation-reconsider').hidden = false;
+});
+$('recommendation-presentiel-yes').addEventListener('click', () => {
+  if (!recommendationConsent || !recommendationResultState) return;
+  $('recommendation-format').hidden = true;
+  $('recommendation-location-form').hidden = false;
+  $('recommendation-country').focus({ preventScroll: true });
+  scrollConversationToBottom();
+});
+$('recommendation-presentiel-no').addEventListener('click', () => loadClassRecommendations(recommendationResultState, { presentiel: false }));
+$('recommendation-location-cancel').addEventListener('click', () => loadClassRecommendations(recommendationResultState, { presentiel: false }));
+$('recommendation-location-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!recommendationConsent || !recommendationResultState) return;
+  const country = $('recommendation-country');
+  const city = $('recommendation-city');
+  country.removeAttribute('aria-invalid');
+  city.removeAttribute('aria-invalid');
+  const pays = country.value.trim();
+  const ville = city.value.trim();
+  const error = !pays || pays.length > 80 ? 'Indique ton pays pour rechercher les cours en présentiel.'
+    : !ville || ville.length > 160 ? 'Indique ta ville ou ton code postal.' : '';
+  if (error) {
+    $('recommendation-location-error').textContent = error;
+    $('recommendation-location-error').hidden = false;
+    const invalid = !pays || pays.length > 80 ? country : city;
+    invalid.setAttribute('aria-invalid', 'true');
+    invalid.focus();
+    return;
+  }
+  loadClassRecommendations(recommendationResultState, { presentiel: true, localisation: { pays, ville } });
+});
+$('recommendation-change').addEventListener('click', showRecommendationFormat);
+$('recommendation-retry').addEventListener('click', () => {
+  if (recommendationOptions) loadClassRecommendations(recommendationResultState, recommendationOptions);
+});
 
 function showResults() {
   $('active-question').hidden = true;
@@ -782,10 +942,10 @@ function showResults() {
     adaptive: 'Le parcours adaptatif a identifié ton niveau le plus précis.',
   };
   $('result-title').textContent = `Merci ${userProfile.prenom}, voici ton bilan.`;
-  $('score').textContent = state.attempted ? `${state.score} / ${state.possible} points` : 'Pas de question notée';
-  $('result-summary').textContent = `${messages[state.reason]} Niveau Lavi conseillé : ${state.variables.niveau_lavi}. ${state.attempted} question(s) évaluée(s) sur les ${questions.filter(q => q.bonneReponse != null || q.type === 'audio_response' && q.points > 0).length} disponibles. Ce positionnement est indicatif.`;
+  $('result-level').textContent = `Niveau ${state.variables.niveau_lavi}`;
+  $('result-summary').textContent = `${messages[state.reason]} Ce positionnement est indicatif.`;
   sendResult(state);
-  loadClassRecommendations(state);
+  resetClassRecommendations(state);
   $('result-title').focus({ preventScroll: true });
   scrollConversationToBottom();
 }

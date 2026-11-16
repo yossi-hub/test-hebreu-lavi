@@ -1,3 +1,6 @@
+import { sessionDistance } from '../../lib/class-progression.js';
+import { filterNearbyClasses, getLocalArea, publicAddress, venueName } from '../../lib/class-geography.js';
+
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: {
@@ -19,11 +22,16 @@ const FIELDS = {
   hours: 'fldOT7CUfWymgpt6x',
   status: 'fldwfIvxjy0RU9ske',
   remaining: 'fld6xVGS673ouP1j6',
+  remainingCourses: 'fld7GpJgDkoIdSANr',
   signupUrl: 'fldPprJbrWEGOt1CT',
   teacher: 'fldd9vTjn64p5GdWb',
   day: 'fldBQEy5J44zTUtbJ',
   address: 'fldzLmZHGT3ZrJpuB',
-  calendar: 'fldF0hUIJ16Oj6',
+  place: 'fldaewXOB571FRk08',
+  calendar: 'fldF0hUIJ16Oj6B03',
+  startDate: 'fldRD4iUQikjM9IqI',
+  nextDate: 'fldYhtsc0XJUen2L4',
+  endDate: 'fldUWJz3lDU0ig83t',
 };
 
 const textValue = (value) => {
@@ -36,7 +44,7 @@ const textValue = (value) => {
 const validHttpsUrl = (value) => {
   try {
     const url = new URL(String(value));
-    return url.protocol === 'https:' ? url.toString() : '';
+    return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : '';
   } catch {
     return '';
   }
@@ -44,25 +52,40 @@ const validHttpsUrl = (value) => {
 
 const numericValue = (value) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  const match = textValue(value).replace(',', '.').match(/-?\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : null;
+  const text = textValue(value).replace(',', '.');
+  if (!/^-?\d+(?:\.\d+)?$/.test(text)) return null;
+  return Number(text);
+};
+
+const dateValue = (value) => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(raw) && Number.isFinite(Date.parse(raw))
+    ? raw : '';
 };
 
 export function normalizeClass(record) {
   const fields = record.fields || {};
+  const endroitIds = Array.isArray(fields[FIELDS.place])
+    ? fields[FIELDS.place].map(value => typeof value === 'string' ? value : value?.id).filter(Boolean) : [];
   return {
     id: record.id,
     nom: `Classe ${textValue(fields[FIELDS.number])}`,
     niveau: textValue(fields[FIELDS.level]),
-    chapitre_en_cours: numericValue(fields[FIELDS.currentChapter]),
+    chapitre_en_cours: textValue(fields[FIELDS.currentChapter]).replace(',', '.'),
     format: textValue(fields[FIELDS.type]),
     statut: textValue(fields[FIELDS.status]),
     jour: textValue(fields[FIELDS.day]),
     horaires: textValue(fields[FIELDS.hours]),
     professeur: textValue(fields[FIELDS.teacher]),
-    adresse: textValue(fields[FIELDS.address]),
+    adresse: publicAddress(textValue(fields[FIELDS.address])),
+    endroit_ids: endroitIds,
+    lieu: venueName({ endroit_ids: endroitIds }),
     calendrier: textValue(fields[FIELDS.calendar]),
     places_restantes: numericValue(fields[FIELDS.remaining]),
+    nombre_cours_restants: numericValue(fields[FIELDS.remainingCourses]),
+    date_debut: dateValue(fields[FIELDS.startDate]),
+    date_prochain_cours: dateValue(fields[FIELDS.nextDate]),
+    date_fin: dateValue(fields[FIELDS.endDate]),
     lien: validHttpsUrl(fields[FIELDS.signupUrl]),
   };
 }
@@ -70,171 +93,116 @@ export function normalizeClass(record) {
 export function selectEligible(records, niveauLavi) {
   return records
     .map(normalizeClass)
-    .filter(item => item.id
-      && item.chapitre_en_cours != null
-      && item.format.toLowerCase() === 'zoom'
-      && item.statut.toLowerCase() === 'upcoming')
-    .filter(item => item.lien && (item.places_restantes == null || item.places_restantes > 0))
-    .map(item => ({ ...item, ecart_chapitre: Math.abs(item.chapitre_en_cours - niveauLavi) }))
-    .filter(item => item.ecart_chapitre <= 1)
-    .sort((a, b) => a.ecart_chapitre - b.ecart_chapitre)
-    .slice(0, 20);
+    .filter(item => item.id && item.lien
+      && ['zoom', 'présentiel'].includes(item.format.toLocaleLowerCase('fr'))
+      && ['in progress', 'upcoming'].includes(item.statut.toLowerCase()))
+    .filter(item => item.statut.toLowerCase() === 'in progress'
+      ? item.places_restantes != null && item.places_restantes > 0
+        && item.nombre_cours_restants != null && item.nombre_cours_restants >= 5
+      : item.places_restantes == null || item.places_restantes > 0)
+    .map(item => {
+      const distance = sessionDistance(item.chapitre_en_cours, niveauLavi);
+      return distance ? { ...item, ...distance } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.distance_seances - b.distance_seances
+      || a.ecart_seances - b.ecart_seances
+      || Number(b.places_restantes != null) - Number(a.places_restantes != null)
+      || a.id.localeCompare(b.id));
 }
 
 async function fetchAirtableRecords(env) {
   const baseId = env.AIRTABLE_BASE_ID || AIRTABLE_DEFAULTS.baseId;
   const tableId = env.AIRTABLE_CLASSES_TABLE_ID || AIRTABLE_DEFAULTS.tableId;
   const records = [];
+  const seenOffsets = new Set();
   let offset = '';
-  for (let page = 0; page < 3; page += 1) {
+  do {
     const url = new URL(`https://api.airtable.com/v0/${baseId}/${tableId}`);
     url.searchParams.set('pageSize', '100');
     url.searchParams.set('returnFieldsByFieldId', 'true');
+    // Only an optimisation: the same status whitelist is enforced after retrieval.
+    url.searchParams.set('filterByFormula', 'OR({Status}="In Progress",{Status}="Upcoming")');
+    for (const fieldId of Object.values(FIELDS)) url.searchParams.append('fields[]', fieldId);
     if (offset) url.searchParams.set('offset', offset);
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${env.AIRTABLE_TOKEN}` },
+      signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) {
       let upstreamType = '';
       try {
         const errorBody = await response.json();
         upstreamType = String(errorBody?.error?.type || errorBody?.error || '').slice(0, 80);
-      } catch {
-        // Le statut HTTP suffit si Airtable ne renvoie pas de JSON.
-      }
+      } catch { /* The HTTP status is enough if Airtable does not return JSON. */ }
       const error = new Error(`Airtable returned ${response.status}`);
       error.upstreamStatus = response.status;
       error.upstreamType = upstreamType;
       throw error;
     }
     const data = await response.json();
-    records.push(...(Array.isArray(data.records) ? data.records : []));
-    offset = data.offset || '';
-    if (!offset) break;
-  }
+    if (!Array.isArray(data.records)) throw new Error('Invalid Airtable records response');
+    records.push(...data.records);
+    offset = typeof data.offset === 'string' ? data.offset : '';
+    if (offset && seenOffsets.has(offset)) throw new Error('Repeated Airtable pagination cursor');
+    if (offset) seenOffsets.add(offset);
+  } while (offset);
   return records;
 }
 
-const recommendationSchema = (candidateIds) => ({
-  type: 'object',
-  properties: {
-    recommandations: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          classe_id: { type: 'string', enum: candidateIds },
-          raison: { type: 'string' },
-        },
-        required: ['classe_id', 'raison'],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ['recommandations'],
-  additionalProperties: false,
-});
-
-export function parseOpenAIResponse(data) {
-  for (const item of data?.output || []) {
-    for (const content of item?.content || []) {
-      if (content?.type === 'output_text' && content.text) return JSON.parse(content.text);
-    }
-  }
-  throw new Error('OpenAI response has no output text');
+function recommendationReason(item) {
+  if (item.ecart_seances === 0) return `Le prochain cours commence à la séance ${item.prochaine_seance}, exactement à ton point de départ conseillé.`;
+  const count = item.distance_seances;
+  const sessions = `${count} séance${count > 1 ? 's' : ''}`;
+  return item.ecart_seances < 0
+    ? `Le prochain cours se situe ${sessions} avant ton point de départ conseillé : tu pourras revoir ces notions.`
+    : `Le prochain cours se situe ${sessions} après ton point de départ conseillé : ${count === 1 ? 'cette séance sera' : 'ces séances seront'} à rattraper.`;
 }
 
-async function rankWithOpenAI(env, niveauLavi, candidates) {
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: env.OPENAI_MODEL || 'gpt-6-luna',
-      store: false,
-      reasoning: { effort: 'low' },
-      instructions: [
-        'Tu conseilles des classes d’hébreu à un adulte après un test de niveau.',
-        'Choisis au maximum trois classes parmi la liste fournie, sans jamais inventer un identifiant ni une information.',
-        'Le niveau Lavi calculé correspond au chapitre cible du participant.',
-        'Classe d’abord les options dont le chapitre_en_cours est le plus proche du niveau_lavi et utilise ecart_chapitre pour les comparer.',
-        'Les classes fournies sont Zoom et Upcoming, avec un écart maximal de 1 chapitre par rapport au chapitre cible, bornes incluses.',
-        'À écart comparable, privilégie les classes dont la disponibilité des places est confirmée.',
-        'Rédige chaque raison en français, chaleureuse, concrète et en une phrase.',
-        'Ne mentionne pas de donnée absente et ne promets pas une inscription.',
-      ].join(' '),
-      input: JSON.stringify({
-        niveau_lavi: niveauLavi,
-        chapitre_cible: niveauLavi,
-        classes_eligibles: candidates,
-      }),
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'class_recommendations',
-          strict: true,
-          schema: recommendationSchema(candidates.map(item => item.id)),
-        },
-      },
-    }),
-  });
-  if (!response.ok) throw new Error(`OpenAI returned ${response.status}`);
-  return parseOpenAIResponse(await response.json());
+function validatedInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const level = typeof input.niveau_lavi === 'string' && /^\d{1,2}$/.test(input.niveau_lavi)
+    ? Number(input.niveau_lavi) : input.niveau_lavi;
+  if (!Number.isInteger(level) || level < 1 || level > 10) return null;
+  if (input.presentiel !== undefined && typeof input.presentiel !== 'boolean') return null;
+  const presentiel = input.presentiel === true;
+  if (!presentiel) return { level, presentiel, localisation: null };
+  const location = input.localisation;
+  if (!location || typeof location !== 'object' || Array.isArray(location)) return null;
+  const pays = typeof location.pays === 'string' ? location.pays.trim() : '';
+  const ville = typeof location.ville === 'string' ? location.ville.trim() : '';
+  if (!pays || pays.length > 100 || !ville || ville.length > 160) return null;
+  return { level, presentiel, localisation: { pays, ville } };
 }
-
-const fallbackReason = (item) => item.statut === 'Upcoming'
-  ? `Cette prochaine classe, actuellement au chapitre ${item.chapitre_en_cours}, est proche du chapitre conseillé à l’issue de ton test.`
-  : `Cette classe en cours, actuellement au chapitre ${item.chapitre_en_cours}, est proche du chapitre conseillé à l’issue de ton test.`;
-
-const enrichRecommendations = (candidates, selections) => {
-  const byId = new Map(candidates.map(item => [item.id, item]));
-  const seen = new Set();
-  const enriched = [];
-  for (const selection of selections || []) {
-    const item = byId.get(selection?.classe_id);
-    if (!item || seen.has(item.id)) continue;
-    seen.add(item.id);
-    enriched.push({ ...item, raison: String(selection.raison || fallbackReason(item)).slice(0, 240) });
-    if (enriched.length === 3) break;
-  }
-  return enriched;
-};
 
 export async function onRequestPost({ request, env }) {
-  if (!env.AIRTABLE_TOKEN || !env.OPENAI_API_KEY) {
-    return json({ ok: false, error: 'Configuration DEV incomplète' }, 503);
-  }
   let input;
-  try {
-    input = await request.json();
-  } catch {
-    return json({ ok: false, error: 'Corps JSON invalide' }, 400);
-  }
-  const niveauLavi = Number(input.niveau_lavi);
-  if (!Number.isInteger(niveauLavi) || niveauLavi < 1 || niveauLavi > 10) {
-    return json({ ok: false, error: 'Niveau invalide' }, 400);
-  }
+  try { input = await request.json(); }
+  catch { return json({ ok: false, error: 'Corps JSON invalide' }, 400); }
+  const parsed = validatedInput(input);
+  if (!parsed) return json({ ok: false, error: 'Niveau ou localisation invalide' }, 400);
+  if (!env.AIRTABLE_TOKEN) return json({ ok: false, error: 'Classes temporairement indisponibles' }, 503);
 
   try {
-    const candidates = selectEligible(await fetchAirtableRecords(env), niveauLavi);
-    if (!candidates.length) {
-      return json({ ok: true, niveau_lavi: niveauLavi, chapitre_cible: niveauLavi, recommendations: [] });
-    }
-    try {
-      const result = await rankWithOpenAI(env, niveauLavi, candidates);
-      const recommendations = enrichRecommendations(candidates, result.recommandations);
-      if (recommendations.length) {
-        return json({ ok: true, source: 'ai', niveau_lavi: niveauLavi, chapitre_cible: niveauLavi, recommendations });
-      }
-    } catch (error) {
-      console.error('Unable to rank classes with OpenAI', error);
-    }
-    const recommendations = candidates.slice(0, 3).map(item => ({ ...item, raison: fallbackReason(item) }));
-    return json({ ok: true, source: 'rules', niveau_lavi: niveauLavi, chapitre_cible: niveauLavi, recommendations });
+    const candidates = selectEligible(await fetchAirtableRecords(env), parsed.level);
+    const zoom = candidates.filter(item => item.format.toLowerCase() === 'zoom').slice(0, 3);
+    const presentiel = parsed.presentiel
+      ? filterNearbyClasses(candidates.filter(item => item.format.toLocaleLowerCase('fr') === 'présentiel'), parsed.localisation).slice(0, 3)
+      : [];
+    const enrich = item => ({ ...item, raison: recommendationReason(item) });
+    const groups = { zoom: zoom.map(enrich), presentiel: presentiel.map(enrich) };
+    return json({
+      ok: true,
+      source: 'rules',
+      niveau_lavi: parsed.level,
+      chapitre_cible: parsed.level,
+      recommendations: [...groups.zoom, ...groups.presentiel],
+      groups,
+      localisation_reconnue: parsed.presentiel ? Boolean(getLocalArea(parsed.localisation)) : null,
+      zone_presentiel: parsed.presentiel ? getLocalArea(parsed.localisation)?.label || null : null,
+    });
   } catch (error) {
-    console.error('Unable to load Airtable classes', error);
+    console.error('Unable to load Airtable class recommendations', error);
     return json({
       ok: false,
       error: 'Classes temporairement indisponibles',

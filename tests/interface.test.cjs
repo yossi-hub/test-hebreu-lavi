@@ -129,10 +129,10 @@ while(!engine.state.finished) {
   if(!engine.state.finished) assert.notEqual(engine.current().id,q.id);
 }
 assert.equal(engine.state.score,21);
-assert.equal($('score').textContent,'21 / 21 points');
+assert.equal($('result-level').textContent,'Niveau 9');
 assert.equal($('results').hidden,false);
 assert.equal(engine.state.variables.niveau_lavi,'9');
-assert.ok($('result-summary').textContent.includes('Niveau Lavi conseillé : 9.'));
+assert.match($('result-summary').textContent,/indicatif/);
 assert.equal($('history').children.length,expectedHistory);
 $('restart').events.click();
 assert.equal(engine.state.score,0);
