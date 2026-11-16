@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { normalizeClass, onRequestGet, onRequestPost, selectEligible } from '../functions/api/recommendations.js';
+import { MAX_SESSION_GAP, normalizeClass, onRequestGet, onRequestPost, selectEligible } from '../functions/api/recommendations.js';
 import { CHAPTER_SESSIONS, chapterStartIndex, nextClassSession, parseChapterSession, sessionDistance } from '../lib/class-progression.js';
 
 const fields = {
@@ -82,7 +82,7 @@ const eligibility = selectEligible([
 ], 4);
 assert.deepEqual(eligibility.map(item => item.id), ['fiveCourses', 'physical', 'upcomingUnknown']);
 
-// Rank all admissible classes by sessions, prioritising an earlier position on a tie.
+// Rank admissible classes within five sessions, prioritising an earlier position on a tie.
 const ordered = selectEligible([
   record('ten', { [fields.currentChapter]: '4.10' }),
   record('after', { [fields.currentChapter]: '4.1' }),
@@ -91,8 +91,29 @@ const ordered = selectEligible([
   record('before', { [fields.currentChapter]: '3.6' }),
   record('nextChapter', { [fields.currentChapter]: '5.1' }),
 ], 4);
-assert.deepEqual(ordered.map(item => item.id), ['exact', 'before', 'after', 'two', 'ten', 'nextChapter']);
-assert.equal(ordered.at(-1).distance_seances, 14, 'No arbitrary +/-1-chapter cutoff');
+assert.deepEqual(ordered.map(item => item.id), ['exact', 'before', 'after', 'two']);
+assert.equal(MAX_SESSION_GAP, 5);
+
+// Both inclusive boundaries apply to every format and status, across chapter changes.
+for (const factory of [record, upcoming, presentiel]) {
+  const boundaryClasses = selectEligible([
+    factory('outsideBefore', { [fields.currentChapter]: '3.1' }), // Next 3.2: six sessions before 4.1.
+    factory('lowerBoundary', { [fields.currentChapter]: '3.2' }), // Next 3.3: five sessions before 4.1.
+    factory('upperBoundary', { [fields.currentChapter]: '4.5' }), // Next 4.6: five sessions after 4.1.
+    factory('outsideAfter', { [fields.currentChapter]: '4.6' }), // Next 4.7: six sessions after 4.1.
+  ], 4);
+  assert.deepEqual(boundaryClasses.map(item => item.id), ['lowerBoundary', 'upperBoundary']);
+  assert.deepEqual(boundaryClasses.map(item => item.ecart_seances), [-5, 5]);
+}
+const rolloverBoundaries = selectEligible([
+  record('lowerBoundary', { [fields.currentChapter]: '1.2' }),
+  record('upperBoundary', { [fields.currentChapter]: '2.5' }), // Next 3.1: exactly five sessions after 2.1.
+  record('outsideBefore', { [fields.currentChapter]: '1.1' }),
+  record('outsideAfter', { [fields.currentChapter]: '3.1' }),
+], 2);
+assert.deepEqual(rolloverBoundaries.map(item => item.id), ['lowerBoundary', 'upperBoundary']);
+assert.deepEqual(rolloverBoundaries.map(item => item.ecart_seances), [-5, 5]);
+assert.equal(rolloverBoundaries[1].prochaine_seance, '3.1');
 
 const request = (body) => new Request('https://example.test/api/recommendations', {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -146,6 +167,33 @@ try {
   assert.match(body.groups.zoom[0].raison, /exactement/);
   assert.match(body.groups.zoom[1].raison, /rattraper/);
   assert.equal(body.groups.zoom[0].lien, 'https://www.oulpanlavi.com/inscription/105');
+
+  globalThis.fetch = async () => Response.json({ records: [
+    record('zoomBefore', { [fields.currentChapter]: '3.2' }),
+    record('zoomAfter', { [fields.currentChapter]: '4.5' }),
+    record('zoomOutsideBefore', { [fields.currentChapter]: '3.1' }),
+    record('zoomOutsideAfter', { [fields.currentChapter]: '4.6' }),
+    presentiel('parisBefore', { [fields.currentChapter]: '3.2' }),
+    presentiel('parisAfter', { [fields.currentChapter]: '4.5' }),
+    presentiel('parisOutsideBefore', { [fields.currentChapter]: '3.1' }),
+    presentiel('parisOutsideAfter', { [fields.currentChapter]: '4.6' }),
+  ] });
+  const bounded = await (await onRequestPost({ request: request({ niveau_lavi: 4, presentiel: true, localisation: { pays: 'France', ville: 'Paris' } }), env })).json();
+  assert.deepEqual(bounded.groups.zoom.map(item => item.id), ['zoomBefore', 'zoomAfter']);
+  assert.deepEqual(bounded.groups.presentiel.map(item => item.id), ['parisBefore', 'parisAfter']);
+  assert.equal(bounded.recommendations.length, 4, 'Do not fill a format with classes outside the window');
+  for (const items of [bounded.groups.zoom, bounded.groups.presentiel, bounded.recommendations]) {
+    assert.ok(items.every(item => item.distance_seances <= MAX_SESSION_GAP));
+  }
+
+  // No wider fallback when the only available classes are outside either boundary.
+  globalThis.fetch = async () => Response.json({ records: [
+    record('farZoom', { [fields.currentChapter]: '4.6' }),
+    presentiel('farParis', { [fields.currentChapter]: '3.1' }),
+  ] });
+  const noNearby = await (await onRequestPost({ request: request({ niveau_lavi: 4, presentiel: true, localisation: { pays: 'France', ville: 'Paris' } }), env })).json();
+  assert.deepEqual(noNearby.groups, { zoom: [], presentiel: [] });
+  assert.deepEqual(noNearby.recommendations, []);
 
   globalThis.fetch = async () => Response.json({ records: [presentiel('paris'), record('zoom')] });
   const withoutOptIn = await (await onRequestPost({ request: request({ niveau_lavi: 4, presentiel: false, localisation: { pays: 'France', ville: 'Paris' } }), env })).json();

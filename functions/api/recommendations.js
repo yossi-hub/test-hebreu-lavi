@@ -9,6 +9,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
   },
 });
 
+export const MAX_SESSION_GAP = 5;
+
 const AIRTABLE_DEFAULTS = {
   baseId: 'appNbwmEyVQsXA25U',
   tableId: 'tblTs7XeOJbkEcSf1',
@@ -104,7 +106,7 @@ export function selectEligible(records, niveauLavi) {
       const distance = sessionDistance(item.chapitre_en_cours, niveauLavi);
       return distance ? { ...item, ...distance } : null;
     })
-    .filter(Boolean)
+    .filter(item => item && item.distance_seances <= MAX_SESSION_GAP)
     .sort((a, b) => a.distance_seances - b.distance_seances
       || a.ecart_seances - b.ecart_seances
       || Number(b.places_restantes != null) - Number(a.places_restantes != null)

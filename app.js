@@ -866,13 +866,13 @@ async function loadClassRecommendations(state, options = { presentiel: false }) 
       count += appendRecommendationGroup('En présentiel près de chez toi', presentiel,
         data.localisation_reconnue === false
           ? 'Nous n’avons pas identifié de secteur de cours pour ce lieu. Vérifie ta ville ou découvre les possibilités sur Zoom.'
-          : 'Aucune classe en présentiel disponible dans ton secteur pour le moment. Découvre aussi les possibilités sur Zoom.');
+          : 'Aucune classe en présentiel adaptée à ton niveau n’est disponible dans ton secteur pour le moment. Découvre aussi les possibilités sur Zoom.');
     }
     count += appendRecommendationGroup('Sur Zoom', zoom,
-      'Aucune classe Zoom disponible pour le moment. Tu peux revenir consulter les propositions plus tard.');
+      'Aucune classe Zoom adaptée à ton niveau n’est disponible pour le moment. Tu peux revenir consulter les propositions plus tard.');
     status.textContent = count
       ? 'Voici les classes les plus proches de ton point de départ, classées par format.'
-      : 'Aucune classe ouverte à l’inscription n’est disponible pour cette recherche pour le moment.';
+      : 'Aucune classe ouverte à l’inscription ne correspond actuellement à ton niveau pour cette recherche.';
     scrollConversationToBottom();
   } catch (error) {
     if (requestId !== recommendationRequest) return;
