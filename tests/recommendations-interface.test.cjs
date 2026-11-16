@@ -43,6 +43,31 @@ const descendants = element => [element, ...(element.children || []).flatMap(nod
 const text = element => descendants(element).map(node => node.textContent || '').join(' ');
 const cards = element => descendants(element).filter(node => node.tag === 'article');
 const links = element => descendants(element).filter(node => node.tag === 'a');
+function controlledClock() {
+  let now = 0;
+  let nextId = 0;
+  const pending = new Map();
+  const delays = [];
+  return {
+    delays,
+    setTimeout(callback, delay = 0) {
+      const id = ++nextId;
+      delays.push(delay);
+      pending.set(id, { callback, at: now + delay });
+      return id;
+    },
+    clearTimeout(id) { pending.delete(id); },
+    advance(milliseconds) {
+      const end = now + milliseconds;
+      while (true) {
+        const next = [...pending].filter(([, timer]) => timer.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
+        if (!next) break;
+        pending.delete(next[0]); now = next[1].at; next[1].callback();
+      }
+      now = end;
+    },
+  };
+}
 
 const zoomClass = {
   id: 'recZoom', nom: 'Classe Zoom 105', niveau: 'Intermédiaire', format: 'Zoom', statut: 'In Progress',
@@ -60,7 +85,7 @@ const result = (zoom = [zoomClass], presentiel = []) => ({
   ok: true, niveau_lavi: 4, source: 'rules', groups: { zoom, presentiel }, recommendations: [...zoom, ...presentiel],
 });
 
-function harness() {
+function harness(setup = {}) {
   const html = fs.readFileSync('index.html', 'utf8');
   const elements = {};
   for (const match of html.matchAll(/<([a-z][\w-]*)\b([^>]*\bid="([^"]+)"[^>]*)>/g)) {
@@ -70,9 +95,11 @@ function harness() {
     elements[id].hidden = /\bhidden(?:\s|>|$)/.test(attributes);
   }
   const calls = [];
+  const clock = controlledClock();
   let answer = async () => response(result());
   const context = vm.createContext({
     URL, URLSearchParams, AbortController, console,
+    setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
     document: {
       getElementById(id) { assert.ok(elements[id], `Identifiant absent : ${id}`); return elements[id]; },
       createElement(tag) { return new Element(tag); },
@@ -82,6 +109,7 @@ function harness() {
     fetch: async (url, options = {}) => {
       calls.push({ url, options });
       if (url === '/api/recommendations') return answer(url, options);
+      if (url === '/api/question-set' && setup.questionSetResponse) return setup.questionSetResponse();
       return response({ ok: true });
     },
   });
@@ -92,7 +120,13 @@ function harness() {
   const click = async id => { assert.equal(typeof elements[id].events.click, 'function', `Bouton non connecté : ${id}`); elements[id].events.click({ preventDefault() {} }); await tick(); };
   const submit = async () => { await elements['recommendation-location-form'].events.submit({ preventDefault() {} }); await tick(); };
   const requests = () => calls.filter(call => call.url === '/api/recommendations');
+  const ready = async () => {
+    await run('questionSetReady');
+    if (!run('intakePromptReady')) clock.advance(2000);
+    await tick();
+  };
   const show = async () => {
+    await ready();
     run(`
       intakeIndex = intakeSteps.length;
       userProfile.prenom = 'Alice';
@@ -105,14 +139,44 @@ function harness() {
     `);
     await tick();
   };
-  return { elements, calls, context, run, click, submit, requests, show, answer(fn) { answer = fn; } };
+  return { elements, calls, clock, context, run, click, submit, requests, ready, show, answer(fn) { answer = fn; } };
 }
 
 (async () => {
+  // Une réponse Airtable lente hydrate la première question avant son affichage,
+  // sans redémarrer le délai déjà écoulé ni permettre de soumission anticipée.
+  const questionSet = deferred();
+  const slow = harness({ questionSetResponse: () => questionSet.promise });
+  const published = JSON.parse(slow.run('JSON.stringify({questions,parcours,profileQuestions:intakeSteps})'));
+  published.profileQuestions[0].question = 'Quel est ton prénom et ton nom, pour commencer ?';
+  assert.equal(slow.elements['intake-prompt'].hidden, true);
+  assert.equal(slow.elements['intake-form'].hidden, true);
+  assert.equal(slow.elements['intake-typing'].hidden, false);
+  assert.equal(slow.elements['intake-question'].textContent, '');
+  slow.run("beginIntakeConversation(); $('intake-answer').value='Trop tôt'; $('intake-form').events.submit({preventDefault(){}})");
+  assert.equal(slow.run('intakeIndex'), 0);
+  assert.equal(slow.run('userProfile.prenom'), '');
+  assert.equal(slow.clock.delays.filter(delay => delay === 2000).length, 1);
+  slow.clock.advance(2000);
+  await tick();
+  assert.equal(slow.elements['intake-prompt'].hidden, true, 'La question attend encore les données Airtable');
+  assert.equal(slow.elements['intake-answer'].disabled, true);
+  questionSet.resolve(response({ version: 'initial-hydration', snapshot: published }));
+  await slow.run('questionSetReady');
+  await tick();
+  assert.equal(slow.elements['intake-prompt'].hidden, false);
+  assert.equal(slow.elements['intake-form'].hidden, false);
+  assert.equal(slow.elements['intake-typing'].hidden, true);
+  assert.equal(slow.elements['intake-answer'].disabled, false);
+  assert.equal(slow.elements['intake-question'].textContent, published.profileQuestions[0].question);
+  assert.equal(slow.clock.delays.filter(delay => delay === 2000).length, 1, 'Aucun délai supplémentaire après le chargement lent');
+
   // Le résultat et son envoi restent disponibles sans autoriser les recommandations.
   const h = harness();
   const el = h.elements;
+  const history = () => el['recommendation-history'].children.map(message => text(message));
   await h.show();
+  assert.deepEqual(history(), []);
   assert.equal(el.results.hidden, false);
   assert.equal(el['result-level'].textContent, 'Niveau 4');
   assert.doesNotMatch(el['result-level'].textContent, /points|4\s*\/\s*6/);
@@ -131,10 +195,16 @@ function harness() {
   assert.equal(el.results.hidden, false);
   assert.equal(el['recommendation-declined'].hidden, false);
   assert.equal(el['recommendation-reconsider'].hidden, false);
+  const declinedHistory = history();
+  assert.equal(declinedHistory.length, 2);
+  assert.match(declinedHistory[0], /Souhaites-tu découvrir les classes/);
+  assert.match(declinedHistory[1], /Non merci/);
 
   await h.click('recommendation-reconsider');
   // Le bouton de retour peut réafficher le consentement ou l'accepter explicitement.
   if (!el['recommendation-optin'].hidden) await h.click('recommendation-yes');
+  assert.deepEqual(history().slice(0, declinedHistory.length), declinedHistory);
+  assert.match(history().at(-1), /Oui, voir les classes/);
   assert.equal(el['recommendation-format'].hidden, false);
   assert.equal(el['recommendation-location-form'].hidden, true);
   assert.equal(h.requests().length, 0, 'Le choix du format précède le chargement');
@@ -147,6 +217,7 @@ function harness() {
   assert.deepEqual(JSON.parse(h.requests()[0].options.body), { niveau_lavi: '4', presentiel: false });
   assert.equal(el['recommendation-location-form'].hidden, true);
   assert.equal(cards(el['class-recommendations-list']).length, 1);
+  assert.match(history().at(-1), /Zoom uniquement/);
   assert.doesNotMatch(text(el['class-recommendations-list']), /Classe Paris 106/);
   assert.doesNotMatch(text(el['class-recommendations-list']), /Deux séances à rattraper/);
   const signup = links(el['class-recommendations-list'])[0];
@@ -156,15 +227,20 @@ function harness() {
   assert.match(signup.rel, /noopener/);
 
   // La localisation n'est demandée et transmise qu'après le choix du présentiel.
+  const beforeChange = history();
   await h.click('recommendation-change');
+  assert.deepEqual(history(), beforeChange, 'Modifier conserve les échanges validés');
   await h.click('recommendation-presentiel-yes');
+  assert.match(history().at(-1), /présentiel et Zoom/);
   assert.equal(el['recommendation-location-form'].hidden, false);
   const beforeValidation = h.requests().length;
+  const beforeInvalidLocation = history();
   el['recommendation-country'].value = '';
   el['recommendation-city'].value = '';
   await h.submit();
   assert.equal(h.requests().length, beforeValidation);
   assert.equal(el['recommendation-location-error'].hidden, false);
+  assert.deepEqual(history(), beforeInvalidLocation, 'Un lieu invalide ne crée pas de réponse validée');
   el['recommendation-country'].value = ' France ';
   el['recommendation-city'].value = ' 75019 ';
   h.answer(async () => response(result([zoomClass], [inPersonClass])));
@@ -172,6 +248,8 @@ function harness() {
   assert.deepEqual(JSON.parse(h.requests().at(-1).options.body), {
     niveau_lavi: '4', presentiel: true, localisation: { pays: 'France', ville: '75019' },
   });
+  assert.match(history().at(-1), /Pays : France\nVille : 75019/);
+  assert.deepEqual(history().slice(0, beforeInvalidLocation.length), beforeInvalidLocation);
   assert.equal(cards(el['class-recommendations-list']).length, 2);
   assert.match(text(el['class-recommendations-list']), /Sur Zoom/);
   assert.match(text(el['class-recommendations-list']), /présentiel/i);
@@ -190,8 +268,12 @@ function harness() {
   // Annuler le lieu revient à Zoom et supprime le lieu du corps envoyé.
   await h.click('recommendation-change');
   await h.click('recommendation-presentiel-yes');
+  el['recommendation-city'].value = 'Brouillon non validé';
   await h.click('recommendation-location-cancel');
   assert.deepEqual(JSON.parse(h.requests().at(-1).options.body), { niveau_lavi: '4', presentiel: false });
+  assert.match(history().at(-1), /Voir uniquement Zoom/);
+  assert.doesNotMatch(history().join(' '), /Brouillon non validé/);
+  el['recommendation-city'].value = '75019';
 
   // Un échec réseau conserve le bilan et laisse relancer le même choix.
   await h.click('recommendation-change');
@@ -199,10 +281,12 @@ function harness() {
   await h.click('recommendation-presentiel-no');
   assert.equal(el.results.hidden, false);
   assert.equal(el['recommendation-retry'].hidden, false);
+  const beforeRetry = history();
   h.answer(async () => response(result()));
   await h.click('recommendation-retry');
   assert.equal(el['recommendation-retry'].hidden, true);
   assert.equal(cards(el['class-recommendations-list']).length, 1);
+  assert.deepEqual(history(), beforeRetry, 'Réessayer ne duplique pas les réponses');
 
   // Le texte Airtable reste du texte, sans créer d'élément HTML.
   await h.click('recommendation-change');
@@ -245,6 +329,7 @@ function harness() {
   assert.equal(el['recommendation-country'].value, '');
   assert.equal(el['recommendation-city'].value, '');
   assert.equal(cards(el['class-recommendations-list']).length, 0);
+  assert.deepEqual(history(), [], 'Recommencer efface les échanges de recommandations');
   pending.resolve(response(result()));
   await tick();
   assert.equal(cards(el['class-recommendations-list']).length, 0);

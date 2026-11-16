@@ -40,15 +40,19 @@
         <button id="audio-demo-start" class="primary" type="button">🎙️ Tester les questions audio (DEV)</button>
       </div>
       <div id="intake-history" class="history" aria-label="Prise de connaissance"></div>
-      <div id="intake-prompt" class="bubble teacher">
+      <div id="intake-typing" class="bubble teacher intake-typing" role="status" aria-label="Professeur Lavi écrit">
+        <span class="sender">Professeur Lavi</span>
+        <span class="typing-indicator" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+      <div id="intake-prompt" class="bubble teacher" hidden>
         <span class="sender">Professeur Lavi</span>
         <p id="intake-question" aria-live="polite"></p>
       </div>
-      <form id="intake-form" class="composer" novalidate>
+      <form id="intake-form" class="composer" hidden novalidate>
         <label id="intake-label" for="intake-answer">Prénom et nom</label>
-        <input id="intake-answer" name="identite" type="text" autocomplete="name" required aria-describedby="intake-error">
+        <input id="intake-answer" name="identite" type="text" autocomplete="name" required disabled aria-describedby="intake-error">
         <p id="intake-error" class="help" role="alert" hidden></p>
-        <button id="intake-submit" class="primary" type="submit">Envoyer <span aria-hidden="true">→</span></button>
+        <button id="intake-submit" class="primary" type="submit" disabled>Envoyer <span aria-hidden="true">→</span></button>
       </form>
       <div id="intake-choices" class="choices" aria-label="Préférence de cours" hidden></div>
       <div id="intake-complete" class="bubble teacher" hidden>
@@ -102,6 +106,7 @@
       <p id="result-summary" class="description"></p>
       <section id="class-recommendations" class="class-recommendations" aria-labelledby="class-recommendations-title">
         <h3 id="class-recommendations-title">Les classes qui pourraient te convenir</h3>
+        <div id="recommendation-history" class="history recommendation-history" role="log" aria-label="Échanges sur les classes"></div>
         <div id="recommendation-optin" class="recommendation-step">
           <p>Souhaites-tu découvrir les classes adaptées à ton niveau ?</p>
           <div class="recommendation-actions">

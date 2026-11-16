@@ -3,6 +3,8 @@
 Application locale en HTML, CSS et JavaScript, sans installation. Interface de conversation : professeur à gauche, élève à droite.
 
 Les réponses conversationnelles utilisent une barre d’écriture de type WhatsApp. Les QCM se répondent uniquement avec les boutons proposés ; les QCM multiples affichent un bouton de validation après la sélection.
+À l’ouverture, un indicateur « Professeur Lavi écrit » précède la première question de profil pendant au moins deux secondes. La question et sa barre de réponse apparaissent lorsque ce délai et le chargement du questionnaire sont terminés ; les questions de profil suivantes restent immédiates. L’indicateur respecte la préférence de réduction des animations.
+Les échanges de prise de connaissance sont repris au début du fil du test : les réponses de profil restent ainsi visibles après le démarrage.
 La barre d’écriture reste fixée en bas de l’écran pendant la conversation.
 
 ## Lancer
@@ -171,7 +173,7 @@ Contrôler ensuite la notification du bureau et vérifier que le bilan utilisate
 
 ### Recommandations de classes (branche DEV)
 
-Le résultat propose d’abord de découvrir des classes : aucun appel de recommandations n’est effectué avant l’accord de l’élève. Il choisit ensuite Zoom uniquement ou présentiel + Zoom. Le pays et la ville (ou un code postal français) sont demandés uniquement pour le présentiel et restent en mémoire pendant la recherche ; ces valeurs ne sont pas ajoutées au bilan, aux contacts ou aux participations. Il peut refuser, revenir sur son choix, modifier sa recherche et réessayer après une erreur. Recommencer le test efface ces choix et invalide les réponses réseau précédentes.
+Le résultat propose d’abord de découvrir des classes : aucun appel de recommandations n’est effectué avant l’accord de l’élève. Il choisit ensuite Zoom uniquement ou présentiel + Zoom. Le pays et la ville (ou un code postal français) sont demandés uniquement pour le présentiel et restent en mémoire pendant la recherche ; ces valeurs ne sont pas ajoutées au bilan, aux contacts ou aux participations. Il peut refuser, revenir sur son choix, modifier sa recherche et réessayer après une erreur. Les questions et réponses validées — accord ou refus, format, pays et ville — restent affichées dans le fil de conversation, y compris après une modification de recherche, une erreur ou un changement d’avis. Les brouillons et les réessais réseau n’ajoutent pas de bulles. Cet historique reste dans la page, sans stockage persistant ni transmission supplémentaire. Recommencer le test efface ces choix et leur historique et invalide les réponses réseau précédentes.
 
 `POST /api/recommendations` reçoit `{niveau_lavi, presentiel}` et, seulement pour le présentiel, `localisation: {pays, ville}`. La fonction charge les champs utiles de toutes les pages de la table `Classes` dans `Base Cours`. Elle retient les formats `Zoom` et `Présentiel`, les statuts `In Progress` et `Upcoming`, et un `Lien d'inscription ` HTTPS valide. Une classe en cours doit avoir des `Places restantes` connues et strictement positives, ainsi qu’un `Nombre de cours restants` connu et supérieur ou égal à 5. Les classes Upcoming complètes sont exclues ; une disponibilité non renseignée reste admise pour ce statut. Le champ calculé `Statut d'inscription`, dont le seuil existant est différent, ne remplace pas ces filtres.
 

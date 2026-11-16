@@ -12,6 +12,35 @@ const intakeSteps = [
   contactPreferenceStep,
 ];
 let intakeIndex = 0;
+const INTAKE_INTRO_DELAY_MS = 2000;
+let intakeIntroStarted = false;
+let intakeIntroElapsed = false;
+let intakeQuestionSetLoaded = false;
+let intakePromptReady = false;
+
+function revealInitialIntake() {
+  if (!intakeIntroElapsed || !intakeQuestionSetLoaded || intakePromptReady) return;
+  $('intake-typing').hidden = true;
+  if ($('welcome').hidden || typeof questionLabMode !== 'undefined' && questionLabMode) return;
+  intakePromptReady = true;
+  $('intake-answer').disabled = false;
+  $('intake-submit').disabled = false;
+  renderIntakeStep(false);
+}
+
+function beginIntakeConversation() {
+  if (intakeIntroStarted) return;
+  intakeIntroStarted = true;
+  $('intake-prompt').hidden = true;
+  $('intake-form').hidden = true;
+  $('intake-answer').disabled = true;
+  $('intake-submit').disabled = true;
+  $('intake-typing').hidden = new URLSearchParams(globalThis.location?.search || '').get('lab') === '1';
+  setTimeout(() => {
+    intakeIntroElapsed = true;
+    revealInitialIntake();
+  }, INTAKE_INTRO_DELAY_MS);
+}
 
 function intakeMessage(text, student = false) {
   const bubble = document.createElement('div');
@@ -33,6 +62,7 @@ function intakeMessage(text, student = false) {
 
 function renderIntakeStep(focus = true) {
   const step = intakeSteps[intakeIndex];
+  $('intake-prompt').hidden = false;
   const conversationalInput = true;
   const choiceStep = step.key === 'format_cours';
   $('intake-form').hidden = choiceStep;
@@ -65,7 +95,7 @@ function renderIntakeStep(focus = true) {
 
 function submitIntake(event) {
   event.preventDefault();
-  if (intakeIndex >= intakeSteps.length) return;
+  if (!intakePromptReady || intakeIndex >= intakeSteps.length) return;
   const step = intakeSteps[intakeIndex];
   const input = $('intake-answer');
   let value = input.value.trim();
@@ -162,6 +192,7 @@ function startTest() {
   $('results').hidden = true;
   $('quiz').hidden = false;
   $('active-question').hidden = false;
+  for (const bubble of $('intake-history').children) $('history').append(bubble.cloneNode(true));
   showTestIntroduction();
   renderQuestion();
 }
@@ -712,8 +743,31 @@ function cancelRecommendationRequest() {
   $('class-recommendations-list').setAttribute('aria-busy', 'false');
 }
 
-function resetClassRecommendations(state = null) {
+function appendRecommendationMessage(text, student = false) {
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${student ? 'student' : 'teacher'}`;
+  const content = document.createElement('p');
+  content.dir = 'auto';
+  content.textContent = text;
+  if (!student) {
+    const sender = document.createElement('span');
+    sender.className = 'sender';
+    sender.textContent = 'Professeur Lavi';
+    bubble.append(sender);
+  }
+  bubble.append(content);
+  $('recommendation-history').append(bubble);
+}
+
+function archiveRecommendationExchange(question, answer) {
+  appendRecommendationMessage(question);
+  appendRecommendationMessage(answer, true);
+  scrollConversationToBottom();
+}
+
+function resetClassRecommendations(state = null, preserveHistory = false) {
   cancelRecommendationRequest();
+  if (!preserveHistory) $('recommendation-history').replaceChildren();
   recommendationConsent = false;
   recommendationResultState = state;
   recommendationOptions = null;
@@ -731,7 +785,8 @@ function resetClassRecommendations(state = null) {
 }
 
 function chooseClassRecommendations() {
-  if (!recommendationResultState) return;
+  if (!recommendationResultState || recommendationConsent) return;
+  archiveRecommendationExchange('Souhaites-tu découvrir les classes adaptées à ton niveau ?', 'Oui, voir les classes');
   recommendationConsent = true;
   showRecommendationFormat();
 }
@@ -889,20 +944,31 @@ async function loadClassRecommendations(state, options = { presentiel: false }) 
 $('recommendation-yes').addEventListener('click', chooseClassRecommendations);
 $('recommendation-reconsider').addEventListener('click', chooseClassRecommendations);
 $('recommendation-no').addEventListener('click', () => {
-  resetClassRecommendations(recommendationResultState);
+  if (!recommendationResultState) return;
+  archiveRecommendationExchange('Souhaites-tu découvrir les classes adaptées à ton niveau ?', 'Non merci');
+  resetClassRecommendations(recommendationResultState, true);
   $('recommendation-optin').hidden = true;
   $('recommendation-declined').hidden = false;
   $('recommendation-reconsider').hidden = false;
 });
 $('recommendation-presentiel-yes').addEventListener('click', () => {
   if (!recommendationConsent || !recommendationResultState) return;
+  archiveRecommendationExchange('Souhaites-tu aussi découvrir des cours en présentiel près de chez toi ?', 'Oui, présentiel et Zoom');
   $('recommendation-format').hidden = true;
   $('recommendation-location-form').hidden = false;
   $('recommendation-country').focus({ preventScroll: true });
   scrollConversationToBottom();
 });
-$('recommendation-presentiel-no').addEventListener('click', () => loadClassRecommendations(recommendationResultState, { presentiel: false }));
-$('recommendation-location-cancel').addEventListener('click', () => loadClassRecommendations(recommendationResultState, { presentiel: false }));
+$('recommendation-presentiel-no').addEventListener('click', () => {
+  if (!recommendationConsent || !recommendationResultState) return;
+  archiveRecommendationExchange('Souhaites-tu aussi découvrir des cours en présentiel près de chez toi ?', 'Sur Zoom uniquement');
+  return loadClassRecommendations(recommendationResultState, { presentiel: false });
+});
+$('recommendation-location-cancel').addEventListener('click', () => {
+  if (!recommendationConsent || !recommendationResultState) return;
+  archiveRecommendationExchange('Indique ton lieu d’habitation pour trouver les classes en présentiel près de chez toi.', 'Voir uniquement Zoom');
+  return loadClassRecommendations(recommendationResultState, { presentiel: false });
+});
 $('recommendation-location-form').addEventListener('submit', event => {
   event.preventDefault();
   if (!recommendationConsent || !recommendationResultState) return;
@@ -922,7 +988,8 @@ $('recommendation-location-form').addEventListener('submit', event => {
     invalid.focus();
     return;
   }
-  loadClassRecommendations(recommendationResultState, { presentiel: true, localisation: { pays, ville } });
+  archiveRecommendationExchange('Indique ton lieu d’habitation pour trouver les classes en présentiel près de chez toi.', `Pays : ${pays}\nVille : ${ville}`);
+  return loadClassRecommendations(recommendationResultState, { presentiel: true, localisation: { pays, ville } });
 });
 $('recommendation-change').addEventListener('click', showRecommendationFormat);
 $('recommendation-retry').addEventListener('click', () => {
@@ -970,7 +1037,7 @@ $('next').addEventListener('click', () => {
 $('start').addEventListener('click', startTest);
 $('restart').addEventListener('click', startTest);
 $('welcome-description').textContent = 'Le parcours s’adapte à tes réponses. Chaque texte ou vidéo est suivi d’au moins trois questions.';
-renderIntakeStep(false);
+beginIntakeConversation();
 
 async function loadQuestionSet() {
   const status = $('question-set-status');
@@ -979,6 +1046,7 @@ async function loadQuestionSet() {
   if (previewMode && !token) {
     status.textContent = 'Aperçu réservé à l’administration. Vérifie d’abord le brouillon depuis la page d’administration.';
     status.hidden = false;
+    $('intake-typing').hidden = true;
     return;
   }
   try {
@@ -1000,7 +1068,7 @@ async function loadQuestionSet() {
     intakeSteps.splice(0, intakeSteps.length, ...snapshot.profileQuestions);
     if (!intakeSteps.some(step => step.key === 'format_cours')) intakeSteps.push(contactPreferenceStep);
     engine = createQuizEngine(questions, parcours);
-    renderIntakeStep(false);
+    if (intakePromptReady && intakeIndex < intakeSteps.length) renderIntakeStep(false);
     if (previewMode) {
       status.textContent = 'Aperçu Airtable : ces questions ne sont pas encore publiées.';
       status.hidden = false;
@@ -1009,12 +1077,13 @@ async function loadQuestionSet() {
     if (previewMode) {
       status.textContent = 'Aperçu indisponible. Retourne à l’administration pour vérifier le brouillon.';
       status.hidden = false;
+      $('intake-typing').hidden = true;
       return;
     }
     // La version embarquée permet au test de fonctionner avant la première publication.
   }
-  $('intake-answer').disabled = false;
-  $('intake-submit').disabled = false;
+  intakeQuestionSetLoaded = true;
+  revealInitialIntake();
 }
 
 $('intake-answer').disabled = true;
