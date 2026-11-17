@@ -40,15 +40,19 @@
         <button id="audio-demo-start" class="primary" type="button">🎙️ Tester les questions audio (DEV)</button>
       </div>
       <div id="intake-history" class="history" aria-label="Prise de connaissance"></div>
-      <div id="intake-prompt" class="bubble teacher">
+      <div id="intake-typing" class="bubble teacher intake-typing" role="status" aria-label="Professeur Lavi écrit">
+        <span class="sender">Professeur Lavi</span>
+        <span class="typing-indicator" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+      <div id="intake-prompt" class="bubble teacher" hidden>
         <span class="sender">Professeur Lavi</span>
         <p id="intake-question" aria-live="polite"></p>
       </div>
-      <form id="intake-form" class="composer" novalidate>
+      <form id="intake-form" class="composer" hidden novalidate>
         <label id="intake-label" for="intake-answer">Prénom et nom</label>
-        <input id="intake-answer" name="identite" type="text" autocomplete="name" required aria-describedby="intake-error">
+        <input id="intake-answer" name="identite" type="text" autocomplete="name" required disabled aria-describedby="intake-error">
         <p id="intake-error" class="help" role="alert" hidden></p>
-        <button id="intake-submit" class="primary" type="submit">Envoyer <span aria-hidden="true">→</span></button>
+        <button id="intake-submit" class="primary" type="submit" disabled>Envoyer <span aria-hidden="true">→</span></button>
       </form>
       <div id="intake-choices" class="choices" aria-label="Préférence de cours" hidden></div>
       <div id="intake-complete" class="bubble teacher" hidden>
@@ -103,12 +107,63 @@
     <section id="results" class="card results" hidden aria-labelledby="result-title">
       <span class="sender">Professeur Lavi · Test terminé</span>
       <h2 id="result-title" tabindex="-1">Un premier pas accompli.</h2>
-      <p id="score" class="score"></p>
+      <p id="result-level" class="result-level"></p>
       <p id="result-summary" class="description"></p>
       <section id="class-recommendations" class="class-recommendations" aria-labelledby="class-recommendations-title">
         <h3 id="class-recommendations-title">Les classes qui pourraient te convenir</h3>
+        <div id="recommendation-history" class="history recommendation-history" role="log" aria-label="Échanges sur les classes"></div>
+        <div id="recommendation-optin" class="recommendation-step">
+          <p>Souhaites-tu découvrir les classes adaptées à ton niveau ?</p>
+          <div class="recommendation-actions">
+            <button id="recommendation-yes" class="primary" type="button">Oui, voir les classes</button>
+            <button id="recommendation-no" class="recommendation-secondary" type="button">Non merci</button>
+          </div>
+        </div>
+        <p id="recommendation-declined" class="help" hidden>Ton bilan reste disponible. Tu pourras découvrir les classes si tu le souhaites.</p>
+        <button id="recommendation-reconsider" class="recommendation-secondary" type="button" hidden>Découvrir les classes</button>
+        <div id="recommendation-format" class="recommendation-step" hidden>
+          <p id="recommendation-format-question" tabindex="-1">Souhaites-tu aussi découvrir des cours en présentiel près de chez toi ?</p>
+          <div class="recommendation-actions">
+            <button id="recommendation-presentiel-yes" class="primary" type="button">Oui, présentiel et Zoom</button>
+            <button id="recommendation-presentiel-no" class="recommendation-secondary" type="button">Sur Zoom uniquement</button>
+          </div>
+        </div>
+        <form id="recommendation-location-form" class="recommendation-location" hidden novalidate>
+          <p>Indique ton lieu d’habitation pour trouver les classes en présentiel près de chez toi.</p>
+          <div class="recommendation-location-fields">
+            <div>
+              <label for="recommendation-country">Pays</label>
+              <input id="recommendation-country" name="pays" type="text" autocomplete="country-name" maxlength="80" required aria-describedby="recommendation-location-error" placeholder="Par exemple : France ou Israël">
+            </div>
+            <div>
+              <label for="recommendation-city">Ville ou code postal français</label>
+              <input id="recommendation-city" name="ville" type="text" autocomplete="address-level2" list="recommendation-cities" maxlength="160" required aria-describedby="recommendation-location-error" placeholder="Par exemple : Paris, 75011 ou Tel Aviv">
+              <datalist id="recommendation-cities">
+                <option value="Paris"></option>
+                <option value="Lyon"></option>
+                <option value="Villeurbanne"></option>
+                <option value="Nice"></option>
+                <option value="Lille"></option>
+                <option value="Bordeaux"></option>
+                <option value="Toulouse"></option>
+                <option value="Marseille"></option>
+                <option value="Jérusalem"></option>
+                <option value="Tel Aviv"></option>
+              </datalist>
+            </div>
+          </div>
+          <p id="recommendation-location-error" class="help" role="alert" hidden></p>
+          <div class="recommendation-actions">
+            <button class="primary" type="submit">Trouver mes classes</button>
+            <button id="recommendation-location-cancel" class="recommendation-secondary" type="button">Voir uniquement Zoom</button>
+          </div>
+        </form>
         <p id="class-recommendations-status" class="help" role="status" aria-live="polite"></p>
         <div id="class-recommendations-list" class="class-recommendations-list"></div>
+        <button id="recommendation-retry" class="recommendation-secondary" type="button" hidden>Réessayer</button>
+        <div id="recommendation-controls" class="recommendation-actions" hidden>
+          <button id="recommendation-change" class="recommendation-secondary" type="button">Modifier ma recherche</button>
+        </div>
       </section>
       <p id="result-email-status" class="help" role="status" aria-live="polite"></p>
       <button id="restart" class="primary">Recommencer le test</button>

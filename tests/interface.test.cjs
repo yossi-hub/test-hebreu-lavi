@@ -27,7 +27,27 @@ assert.ok(html.includes('Je suis Lavi, ensemble, nous allons évaluer ton niveau
 const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(ids).size,ids.length);
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
-const context=vm.createContext({assert,URL,URLSearchParams,FormData,Blob,AbortController,setTimeout,clearTimeout,fetch:async()=>({ok:true,json:async()=>({success:true})}),document:{
+let clockNow=0;
+let timerId=0;
+const timers=new Map();
+const scheduledDelays=[];
+const controlledSetTimeout=(callback,delay=0)=>{
+  scheduledDelays.push(delay);
+  const id=++timerId;
+  timers.set(id,{callback,at:clockNow+delay});
+  return id;
+};
+const controlledClearTimeout=id=>timers.delete(id);
+function advanceClock(milliseconds) {
+  const end=clockNow+milliseconds;
+  while(true) {
+    const next=[...timers].filter(([,timer])=>timer.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];
+    if(!next) break;
+    timers.delete(next[0]); clockNow=next[1].at; next[1].callback();
+  }
+  clockNow=end;
+}
+const context=vm.createContext({assert,URL,URLSearchParams,FormData,Blob,AbortController,setTimeout:controlledSetTimeout,clearTimeout:controlledClearTimeout,fetch:async()=>({ok:true,json:async()=>({success:true})}),document:{
   getElementById(id) {assert.ok(elements[id],`Identifiant absent : ${id}`);return elements[id];},
   createElement(tag) {const e=new Element(tag);created.push(e);return e;},
 }});
@@ -40,6 +60,27 @@ context.fetch=async(url, options)=>{
 context.scrollTo=({top})=>context.scrollPositions.push(top);
 for(const file of ['questions.js','engine.js','audio-recorder.js','audio-experiment.js','app.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context);
 (async () => {
+assert.equal(elements['intake-prompt'].hidden,true);
+assert.equal(elements['intake-form'].hidden,true);
+assert.equal(elements['intake-typing'].hidden,false);
+assert.equal(elements['intake-question'].textContent || '','');
+assert.equal(elements['intake-answer'].disabled,true);
+assert.equal(elements['intake-submit'].disabled,true);
+vm.runInContext("$('intake-answer').value='Réponse anticipée'; $('intake-form').events.submit({preventDefault(){}}); assert.equal(intakeIndex,0); assert.equal(userProfile.prenom,''); beginIntakeConversation()",context);
+assert.equal(scheduledDelays.filter(delay=>delay===2000).length,1);
+await vm.runInContext('questionSetReady',context);
+advanceClock(1999);
+assert.equal(elements['intake-prompt'].hidden,true);
+assert.equal(elements['intake-form'].hidden,true);
+assert.equal(elements['intake-typing'].hidden,false);
+assert.equal(elements['intake-answer'].disabled,true);
+advanceClock(1);
+assert.equal(elements['intake-prompt'].hidden,false);
+assert.equal(elements['intake-form'].hidden,false);
+assert.equal(elements['intake-typing'].hidden,true);
+assert.equal(elements['intake-answer'].disabled,false);
+assert.equal(elements['intake-submit'].disabled,false);
+assert.equal(scheduledDelays.filter(delay=>delay===2000).length,1,'Le chargement des questions ne programme pas un second délai');
 vm.runInContext(`
 const firstQcm=questions.find(q=>q.id==='353a37e5-2d45-4bec-a856-a8312586b6f0');
 assert.equal(parseTypedAnswer(firstQcm,'אני דויד'),firstQcm.bonneReponse);
@@ -91,7 +132,10 @@ $('contest-participation').checked=true;
 $('start').events.click();
 assert.equal(userProfile.jeu_concours_hanouka,true);
 assert.equal(testIntroShown,true);
-const intro=$('history').children[0];
+const retainedProfileMessages=$('intake-history').children.length;
+assert.equal($('history').children.length,retainedProfileMessages+1);
+assert.equal($('history').children[0].children[1].textContent,$('intake-history').children[0].children[1].textContent);
+const intro=$('history').children.at(-1);
 assert.equal(intro.children[1].textContent,'OK Alice,');
 assert.match(intro.children[2].textContent,/adaptatif/);
 assert.match(intro.children[2].textContent,/Passer cette question/);
@@ -139,7 +183,7 @@ while(!engine.state.finished) {
   if(!engine.state.finished) assert.notEqual(engine.current().id,q.id);
 }
 assert.equal(engine.state.score,21);
-assert.equal($('score').textContent,'21 / 21 points');
+assert.equal($('result-level').textContent,'Niveau 9');
 assert.equal($('results').hidden,false);
 `, context);
 await new Promise(setImmediate);
@@ -148,11 +192,11 @@ assert.equal(resultPayloads.length,1);
 assert.equal(resultPayloads[0].jeu_concours_hanouka,true);
 assert.equal(resultPayloads[0].erreurs.length,0);
 assert.equal(engine.state.variables.niveau_lavi,'9');
-assert.ok($('result-summary').textContent.includes('Niveau Lavi conseillé : 9.'));
+assert.match($('result-summary').textContent,/indicatif/);
 assert.equal($('history').children.length,expectedHistory);
 $('restart').events.click();
 assert.equal(engine.state.score,0);
-assert.equal($('history').children.length,1);
+assert.equal($('history').children.length,retainedProfileMessages+1);
 assert.equal($('question-title').textContent,'Avant de commencer');
 assert.equal($('support-progress').hidden,true);
 assert.equal(userProfile.prenom,'Alice');
